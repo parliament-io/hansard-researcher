@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--Synthetic test fixture. No real Hansard text (see LICENSES-DATA.md).-->
+<hansard id="frag-0002" tocId="" schemaVersion="4.0" xml:lang="en-AU">
+  <name>Synthetic Assembly</name>
+  <date date="2026-03-04T09:00:00+08:00" />
+  <sessionName>Forty-second, First (42-1)</sessionName>
+  <parliamentNum>42</parliamentNum>
+  <sessionNum>1</sessionNum>
+  <parliamentName>Parliament of Testland</parliamentName>
+  <house>Synthetic Assembly</house>
+  <venue></venue>
+  <reviewStage>published</reviewStage>
+  <startTime time="2026-03-04T09:00:00+08:00" />
+  <endTime time="2026-03-04T17:00:00+08:00" />
+  <startPage num="100" />
+  <endPage num="150" />
+  <dateModified time="2026-03-10T10:00:00+08:00" />
+  <proceeding uid="proc-1" continued="true">
+    <name>Questions Without Notice</name>
+    <text id="tx-0001">
+      <heading>Questions Without Notice</heading>
+    </text>
+    <subject uid="subj-2">
+      <name>Gadget Standards Bill</name>
+      <bills>
+        <bill id="bill-9" referenceid="bill-ref-9" uid="bill-uid-9">Gadget Standards Bill 2026</bill>
+      </bills>
+      <text id="tx-0006">
+        <heading>Gadget Standards Bill</heading>
+      </text>
+      <subproceeding uid="subp-1">
+        <name>Second Reading</name>
+        <talker role="member" id="m-300" referenceid="ref-300" uid="talk-3" kind="speech" firstSpeech="true">
+          <name>Dr Newcomer</name>
+          <electorate id="e-2">Sampleton</electorate>
+          <party id="party-2" abbreviation="SM">Sample Movement</party>
+          <portfolios />
+          <startTime time="2026-03-04T10:00:00+08:00" />
+          <page num="110" />
+          <text id="tx-0007">I rise to make my first speech on gadget standards.</text>
+        </talker>
+      </subproceeding>
+      <division id="div-1" uid="div-uid-1" vote="ayes">
+        <text id="tx-0008">The house divided.</text>
+        <ayesCount num="2" />
+        <noesCount num="1" />
+        <data>
+          <member id="m-100" vote="AYES" name="Ms Example" teller="true" />
+          <member id="m-300" vote="AYES" name="Dr Newcomer" />
+          <member id="m-200" vote="NOES" name="Mr Sample" />
+        </data>
+      </division>
+    </subject>
+  </proceeding>
+</hansard>

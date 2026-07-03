@@ -1,0 +1,109 @@
+# parlhansard
+
+Open-source analytics extraction for Parliamentary Hansard daily XML.
+
+Six target jurisdictions: **Western Australia, South Australia, New South
+Wales, Australian Federal Parliament, New Zealand, Scottish Parliament** —
+harvested from official sources, normalized into one canonical model
+(descended from the `Hansard_1_0.xsd` schema family that WA and SA publish
+natively), and aggregated into analysis-ready open datasets anyone can query
+with DuckDB or a notebook.
+
+**Status: core pipeline complete and the full backfill executed
+(2026-07-03).** Four jurisdictions are live end-to-end; NZ and Scotland are
+researched placeholders. See [docs/ROADMAP.md](docs/ROADMAP.md) for
+per-jurisdiction source research, verified data boundaries, operational
+notes, and what's next.
+
+## Current archive (backfilled 2026-07-03, local `data/`, ~4.5 GB raw)
+
+| | WA | SA | AU Federal | NSW | Total |
+|---|---|---|---|---|---|
+| Coverage | 2025→ | ~2008→ | 2017-02-07→ | 2005→ | ~21 years |
+| House-days | 153 | 1,952 | 1,021 | 2,117 | **5,243** |
+| Speaking turns | 46k | 651k | 304k | 246k | **1.25M** |
+| Text paragraphs | 157k | 2.16M | 1.62M | 2.52M | **6.4M** |
+| Division member votes | 4.6k | 32k | 513k | — (prose only) | **549k** |
+
+Boundaries are *moving*: parliaments upload historic conversions over time
+(NSW migrates old Word documents; WA/SA are deepening). Harvesters probe—
+never hardcode—and a re-run picks up newly available days automatically.
+
+## Design in one paragraph
+
+Per-jurisdiction **harvest adapters** fetch official XML into an immutable raw
+store; a shared **normalizer** maps every source into the canonical model
+(silver Parquet, hive-partitioned `jurisdiction/date/house`); optional
+**enrichment** (themes, embeddings, entity links) is pluggable and never
+required; an **aggregator** produces gold cubes (member activity, Q→A pairs,
+divisions, sitting rhythm) published as language-neutral Parquet + DuckDB.
+Tier 1 analytics require no API keys and no models — the whole pipeline runs
+on a laptop.
+
+## Quickstart
+
+```bash
+uv sync
+uv run pytest                        # 70 tests
+uv run parlhansard sources           # adapter status per jurisdiction
+uv run parlhansard schema            # emit canonical JSON Schema
+
+# incremental harvest (skips already-fetched days; re-probes missing ones;
+# --refresh-window re-fetches recent days so proofs converge to corrected)
+uv run parlhansard harvest wa --start 2026-06-01 --end 2026-07-03 --refresh-window 45
+
+# raw XML -> silver Parquet (parallel across house-days; default CPU-1 workers)
+uv run parlhansard normalize wa --workers 8
+
+# silver -> gold cubes (full recompute, seconds) + self-contained DuckDB
+uv run parlhansard aggregate
+uv run parlhansard db --out data/hansard.duckdb
+
+# query anything — no server needed
+uv run python -c "import duckdb; print(duckdb.sql(
+  \"select member_name, words from 'data/gold/member_activity.parquet' order by words desc limit 5\"))"
+```
+
+Full backfill = the same `harvest` command with a wide date range; it is
+idempotent and newest-first, and interrupting/resuming is always safe.
+
+## Dashboards
+
+`dashboards/` is an [Evidence.dev](https://evidence.dev) project — pages are
+markdown with SQL blocks, built into a fully static site from the **gold
+cubes only** (derived facts; no Hansard prose can reach the site):
+
+```bash
+uv run parlhansard db --out dashboards/sources/hansard/hansard.duckdb
+cd dashboards && npm install && npm run sources && npm run dev   # or: npm run build
+```
+
+The daily `publish.yml` workflow harvests all four live jurisdictions,
+aggregates, and redeploys the site to GitHub Pages automatically.
+
+## Data licensing
+
+We publish **code and derived statistics only** — no transformed Hansard
+text. Full-text tables are rebuilt locally by each user from the official
+source. See [LICENSES-DATA.md](LICENSES-DATA.md) for per-jurisdiction terms.
+`data/` is gitignored: raw + silver contain Hansard text and stay local;
+gold is publishable everywhere (enforced by test — gold cubes carry no
+`raw_text`/`clean_text` columns).
+
+## Layout
+
+```
+schemas/          canonical XSD + generated JSON Schema + source-schema lineage
+                  (wa/sa swagger copies, federal ExtractSchema v1)
+src/parlhansard/
+  model/          canonical Pydantic model, deterministic ids, content hashing
+  harvest/        adapters: wa, sa (shared API), nsw, au + nz, scot stubs
+  normalize/      canonical_xml (WA/SA + stitch_daily), au_unixml, nsw_xml,
+                  silver writer, parallel runner
+  aggregate/      gold cube SQL (cubes.py) + hansard.duckdb builder
+  cli.py          harvest | normalize | aggregate | db | sources | schema
+samples/          redistributable source samples (federal CC BY-NC-ND verbatim)
+dashboards/       Evidence.dev site (gold-only)
+data/             local only, gitignored: raw/ silver/ gold/ + backfill logs
+.github/workflows publish.yml (daily pipeline + Pages), ci.yml (lint/test/schema-drift)
+```

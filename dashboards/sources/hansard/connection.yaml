@@ -1,0 +1,7 @@
+# Gold-only DuckDB artifact — derived facts, no Hansard prose (LICENSES-DATA.md).
+# Rebuild before `npm run sources`:
+#   uv run parlhansard db --out dashboards/sources/hansard/hansard.duckdb
+name: hansard
+type: duckdb
+options:
+  filename: hansard.duckdb

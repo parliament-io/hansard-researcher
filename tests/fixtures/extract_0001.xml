@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--Synthetic test fixture. No real Hansard text (see LICENSES-DATA.md).-->
+<hansard id="frag-0001" tocId="" schemaVersion="4.0" xml:lang="en-AU">
+  <name>Synthetic Assembly</name>
+  <date date="2026-03-04T09:00:00+08:00" />
+  <sessionName>Forty-second, First (42-1)</sessionName>
+  <parliamentNum>42</parliamentNum>
+  <sessionNum>1</sessionNum>
+  <parliamentName>Parliament of Testland</parliamentName>
+  <house>Synthetic Assembly</house>
+  <venue></venue>
+  <reviewStage>published</reviewStage>
+  <startTime time="2026-03-04T09:00:00+08:00" />
+  <endTime time="2026-03-04T17:00:00+08:00" />
+  <startPage num="100" />
+  <endPage num="150" />
+  <dateModified time="2026-03-10T10:00:00+08:00" />
+  <proceeding uid="proc-1">
+    <name>Questions Without Notice</name>
+    <text id="tx-0001">
+      <heading>Questions Without Notice</heading>
+    </text>
+    <subject uid="subj-1">
+      <name>Widget Regulation</name>
+      <text id="tx-0002">
+        <heading>Widget Regulation</heading>
+      </text>
+      <talker role="member" id="m-100" referenceid="ref-100" uid="talk-1" kind="question">
+        <name>Ms Example</name>
+        <electorate id="e-1">Testville</electorate>
+        <party id="party-1" abbreviation="EX">Example Party</party>
+        <portfolios />
+        <startTime time="2026-03-04T09:05:00+08:00" />
+        <text id="tx-0003">
+          <timeStamp time="2026-03-04T09:05:00+08:00" />
+          <by role="member" id="m-100" referenceid="ref-100" uid="by-1">Ms Example (Testville) (9:05 am)</by>
+          <span mappedstyle="GeneralNormal">:</span> Will the minister regulate widgets?</text>
+      </talker>
+      <talker role="minister" id="m-200" referenceid="ref-200" uid="talk-2" kind="answer">
+        <name>Mr Sample</name>
+        <portfolios>
+          <portfolio id="pf-1">Widgets</portfolio>
+        </portfolios>
+        <startTime time="2026-03-04T09:06:00+08:00" />
+        <page num="101" />
+        <text id="tx-0004">Yes, the government will regulate widgets. We take &amp;#x9;widget policy seriously.</text>
+        <text id="tx-0005">
+          <item>
+            <span mappedstyle="Quotes">Widget regulation framework, part one.</span>
+          </item>
+        </text>
+      </talker>
+    </subject>
+  </proceeding>
+</hansard>

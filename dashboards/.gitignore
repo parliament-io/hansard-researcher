@@ -1,0 +1,5 @@
+node_modules/
+.evidence/
+build/
+# the gold-only DuckDB artifact is rebuilt by `parlhansard db` before each build
+sources/hansard/hansard.duckdb

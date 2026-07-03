@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--Synthetic test fixture. No real Hansard text (see LICENSES-DATA.md).-->
+<hansard noNamespaceSchemaLocation="../../hansard.xsd" version="2.2">
+  <session.header>
+    <date>2026-03-11</date>
+    <parliament.no>3</parliament.no>
+    <session.no>1</session.no>
+    <period.no>0</period.no>
+    <chamber>Senate</chamber>
+    <page.no>0</page.no>
+    <proof>1</proof>
+  </session.header>
+  <chamber.xscript>
+    <business.start>
+      <body>
+        <p class="HPS-Normal"><span class="HPS-Normal">The PRESIDENT took the chair at 09:00.</span></p>
+      </body>
+    </business.start>
+    <debate>
+      <debateinfo>
+        <title>QUESTIONS WITHOUT NOTICE</title>
+        <page.no>10</page.no>
+        <type>QUESTIONS WITHOUT NOTICE</type>
+      </debateinfo>
+      <subdebate.1>
+        <subdebateinfo>
+          <title>Synthetic Widgets</title>
+          <page.no>11</page.no>
+        </subdebateinfo>
+        <question>
+          <talk.start>
+            <talker>
+              <page.no>11</page.no>
+              <time.stamp/>
+              <name role="metadata">Tester, Sen Alice</name>
+              <name.id>900001</name.id>
+              <electorate>Testland</electorate>
+              <party>TP</party>
+              <in.gov/>
+              <first.speech/>
+            </talker>
+          </talk.start>
+          <talk.text>
+            <body>
+              <p class="HPS-Normal"><span class="HPS-Time">14:01</span> Senator TESTER: My question is about widgets.</p>
+            </body>
+          </talk.text>
+        </question>
+        <answer>
+          <talk.start>
+            <talker>
+              <page.no>11</page.no>
+              <time.stamp/>
+              <name role="metadata">Sample, Sen Bob</name>
+              <name.id>900002</name.id>
+              <electorate>Sampleland</electorate>
+              <party>GP</party>
+              <in.gov>1</in.gov>
+              <first.speech/>
+            </talker>
+          </talk.start>
+          <talk.text>
+            <body>
+              <p class="HPS-Normal">Senator SAMPLE: The government supports widgets.</p>
+            </body>
+          </talk.text>
+          <interjection>
+            <talk.start>
+              <talker>
+                <page.no>12</page.no>
+                <time.stamp/>
+                <name role="metadata">Heckler, Sen Carol</name>
+                <name.id>900003</name.id>
+                <electorate>Noisyville</electorate>
+                <party>NP</party>
+                <in.gov/>
+                <first.speech/>
+              </talker>
+            </talk.start>
+            <talk.text>
+              <body>
+                <p class="HPS-Normal">Rubbish!</p>
+              </body>
+            </talk.text>
+          </interjection>
+          <continue>
+            <talk.start>
+              <talker>
+                <page.no>12</page.no>
+                <time.stamp/>
+                <name role="metadata">Sample, Sen Bob</name>
+                <name.id>900002</name.id>
+                <electorate>Sampleland</electorate>
+                <party>GP</party>
+                <in.gov>1</in.gov>
+                <first.speech/>
+              </talker>
+            </talk.start>
+            <talk.text>
+              <body>
+                <p class="HPS-Normal">As I was saying, widgets matter.</p>
+              </body>
+            </talk.text>
+          </continue>
+        </answer>
+      </subdebate.1>
+    </debate>
+    <debate>
+      <debateinfo>
+        <title>BILLS</title>
+        <page.no>20</page.no>
+        <type>BILLS</type>
+      </debateinfo>
+      <subdebate.1>
+        <subdebateinfo>
+          <title>Synthetic Standards Bill 2026</title>
+          <page.no>20</page.no>
+        </subdebateinfo>
+        <subdebate.2>
+          <subdebateinfo>
+            <title>Second Reading</title>
+            <page.no>20</page.no>
+          </subdebateinfo>
+          <speech>
+            <talk.start>
+              <talker>
+                <page.no>20</page.no>
+                <time.stamp/>
+                <name role="metadata">Newbie, Sen Dana</name>
+                <name.id>900004</name.id>
+                <electorate>Freshfield</electorate>
+                <party>TP</party>
+                <in.gov/>
+                <first.speech>1</first.speech>
+              </talker>
+            </talk.start>
+            <talk.text>
+              <body>
+                <p class="HPS-Normal">I rise to make my first speech about standards.</p>
+              </body>
+            </talk.text>
+          </speech>
+        </subdebate.2>
+        <division>
+          <division.header>
+            <body>
+              <p class="HPS-DivisionPreamble">The Senate divided. [14:33]<br/>(The President)</p>
+            </body>
+          </division.header>
+          <division.data>
+            <ayes>
+              <num.votes>2</num.votes>
+              <title>AYES</title>
+              <names>
+                <name>Tester, A. (Teller)</name>
+                <name>Newbie, D.</name>
+              </names>
+            </ayes>
+            <noes>
+              <num.votes>1</num.votes>
+              <title>NOES</title>
+              <names>
+                <name>Sample, B.</name>
+              </names>
+            </noes>
+          </division.data>
+          <division.result>
+            <body>
+              <p class="HPS-Normal">Question agreed to.</p>
+            </body>
+          </division.result>
+        </division>
+      </subdebate.1>
+    </debate>
+  </chamber.xscript>
+</hansard>

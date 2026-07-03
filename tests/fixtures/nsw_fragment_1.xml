@@ -1,0 +1,55 @@
+<hansard>
+  <hansard.header>
+    <date>2026-06-24T00:00:00+10:00</date>
+    <parliament.number>58</parliament.number>
+    <session.number>1</session.number>
+    <parliament.session.name>Fifty-Eighth Parliament, First Session (58-1)</parliament.session.name>
+    <chamber>Legislative Council</chamber>
+    <draft>true</draft>
+  </hansard.header>
+  <chamber.xscript>
+    <fragment.data>
+      <proceeding>
+        <proceedinginfo>
+          <text>Motions</text>
+        </proceedinginfo>
+        <topic>
+          <topicinfo>
+            <text>Synthetic Motion</text>
+          </topicinfo>
+          <speech>
+            <talk.start>
+              <talker>
+                <talk.time></talk.time>
+                <id>2300</id>
+                <name>Dr TEST MEMBER</name>
+                <electorate></electorate>
+                <portfolios />
+                <question.number />
+                <question.date />
+              </talker>
+            </talk.start>
+          </speech>
+        </topic>
+      </proceeding>
+    </fragment.data>
+    <fragment.text>
+      <body>
+        <p class="SubDebate-H" xmlns="http://www.w3.org/1999/xhtml">
+          <span>Synthetic Motion</span>
+        </p>
+        <p class="Normal-P" xmlns="http://www.w3.org/1999/xhtml">
+          <span class="Normal-H">
+            <span class="MemberSpeech-H" data-mode="member" data-type="article" data-value="2300" data-article="speech">Dr TEST MEMBER</span>
+            <span class="GeneralBold-H"> (</span>
+            <span class="Time-H">10:04</span>
+            <span class="HiddenTime-H">:26</span>
+            <span class="GeneralBold-H">):</span>  I move that this synthetic house notes widgets.</span>
+        </p>
+        <p class="SmallNumber-P" xmlns="http://www.w3.org/1999/xhtml">
+          <span class="SmallNumber-H">(1) That widgets be noted.</span>
+        </p>
+      </body>
+    </fragment.text>
+  </chamber.xscript>
+</hansard>

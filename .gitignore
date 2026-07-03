@@ -1,0 +1,20 @@
+# data plane — never committed (raw/silver contain Hansard text; see LICENSES-DATA.md)
+data/
+
+# local tooling noise
+logs/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+.duckdb
+*.duckdb
+*.duckdb.wal
+.vscode/
+schemas/
+scripts/
+PLAN.md

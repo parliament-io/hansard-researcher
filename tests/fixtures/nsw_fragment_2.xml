@@ -1,0 +1,75 @@
+<hansard>
+  <hansard.header>
+    <date>2026-06-24T00:00:00+10:00</date>
+    <parliament.number>58</parliament.number>
+    <session.number>1</session.number>
+    <parliament.session.name>Fifty-Eighth Parliament, First Session (58-1)</parliament.session.name>
+    <chamber>Legislative Council</chamber>
+    <draft>true</draft>
+  </hansard.header>
+  <chamber.xscript>
+    <fragment.data>
+      <proceeding>
+        <proceedinginfo>
+          <text>Motions</text>
+        </proceedinginfo>
+        <topic>
+          <topicinfo>
+            <text>Second Synthetic Motion</text>
+          </topicinfo>
+          <question>
+            <talk.start>
+              <talker>
+                <talk.time></talk.time>
+                <id>2400</id>
+                <name>Ms ASKER</name>
+                <electorate></electorate>
+                <portfolios />
+                <question.number>77</question.number>
+                <question.date />
+              </talker>
+            </talk.start>
+          </question>
+          <answer>
+            <talk.start>
+              <talker>
+                <talk.time></talk.time>
+                <id>2500</id>
+                <name>Mr RESPONDER</name>
+                <electorate></electorate>
+                <portfolios>
+                  <portfolio>Synthetic Affairs</portfolio>
+                </portfolios>
+                <question.number />
+                <question.date />
+              </talker>
+            </talk.start>
+          </answer>
+        </topic>
+      </proceeding>
+    </fragment.data>
+    <fragment.text>
+      <body>
+        <p class="SubDebate-H" xmlns="http://www.w3.org/1999/xhtml">
+          <span>Second Synthetic Motion</span>
+        </p>
+        <p class="Normal-P" xmlns="http://www.w3.org/1999/xhtml">
+          <span class="Normal-H">
+            <span class="MemberQuestion-H" data-mode="member" data-type="article" data-value="2400" data-article="question">Ms ASKER</span>
+            <span class="Time-H">14:30</span>
+            <span class="HiddenTime-H">:05</span>
+            <span> Will the minister explain the widget policy?</span>
+          </span>
+        </p>
+        <p class="Normal-P" xmlns="http://www.w3.org/1999/xhtml">
+          <span class="Normal-H">
+            <span class="MemberAnswer-H" data-mode="member" data-type="article" data-value="2500" data-article="answer">Mr RESPONDER</span>
+            <span class="Time-H">14:31</span>
+            <span class="HiddenTime-H">:10</span>
+            <span> The widget policy is excellent.</span>
+          </span>
+        </p>
+      </body>
+    </fragment.text>
+  </chamber.xscript>
+</hansard>

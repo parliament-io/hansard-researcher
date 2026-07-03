@@ -1,0 +1,25 @@
+<hansard.toc sid="TEST-SID-1" pid="TEST-PID-1">
+  <hansard.header>
+    <date>2026-06-24T00:00:00+10:00</date>
+    <parliament.number>58</parliament.number>
+    <session.number>1</session.number>
+    <parliament.session.name>Fifty-Eighth Parliament, First Session (58-1)</parliament.session.name>
+    <chamber>Legislative Council</chamber>
+    <draft>true</draft>
+  </hansard.header>
+  <proceeding>
+    <proceedinginfo>
+      <text>Motions</text>
+    </proceedinginfo>
+    <topic uid="TEST-FRAG-0001" ref="1">
+      <topicinfo>
+        <text id="" type="SubDebate">Synthetic Motion</text>
+      </topicinfo>
+    </topic>
+    <topic uid="TEST-FRAG-0002" ref="2">
+      <topicinfo>
+        <text id="" type="SubDebate">Second Synthetic Motion</text>
+      </topicinfo>
+    </topic>
+  </proceeding>
+</hansard.toc>

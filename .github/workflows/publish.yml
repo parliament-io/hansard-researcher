@@ -1,0 +1,96 @@
+name: Publish
+
+# Daily pipeline: harvest -> normalize -> aggregate -> build dashboards -> Pages.
+#
+# Licensing invariants (see LICENSES-DATA.md):
+# - data/raw + data/silver contain Hansard text: CACHED between runs, never
+#   published or committed.
+# - data/gold contains derived facts only: published as artifacts + baked into
+#   the static dashboard site.
+
+on:
+  schedule:
+    - cron: "30 19 * * *" # daily 19:30 UTC = early morning AWST/ACST
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "Backfill start date (YYYY-MM-DD)"
+        required: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Restore raw/silver cache (never published)
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: hansard-data-${{ github.run_id }}
+          restore-keys: hansard-data-
+
+      - name: Sync dependencies
+        run: uv sync --dev
+
+      - name: Harvest (incremental — already-fetched days are skipped)
+        run: |
+          START="${{ github.event.inputs.start }}"
+          if [ -z "$START" ]; then START=$(date -d '-21 days' +%F); fi
+          END=$(date +%F)
+          # --refresh-window keeps recent days converging from uncorrected
+          # proofs to the corrected record
+          uv run parlhansard harvest wa --start "$START" --end "$END" --refresh-window 45
+          uv run parlhansard harvest sa --start "$START" --end "$END" --refresh-window 45
+          uv run parlhansard harvest nsw --start "$START" --end "$END" --refresh-window 45
+          uv run parlhansard harvest au --start "$START" --end "$END" --refresh-window 45
+
+      - name: Normalize + aggregate
+        run: |
+          uv run parlhansard normalize wa
+          uv run parlhansard normalize sa
+          uv run parlhansard normalize nsw
+          uv run parlhansard normalize au
+          uv run parlhansard aggregate
+          uv run parlhansard db --out dashboards/sources/hansard/hansard.duckdb
+
+      - name: Publish gold datasets (derived facts only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: hansard-gold
+          path: data/gold/
+
+      - name: Build dashboards
+        working-directory: dashboards
+        run: |
+          npm ci --no-audit --no-fund
+          npm run sources
+          npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dashboards/build
+
+  deploy:
+    needs: pipeline
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

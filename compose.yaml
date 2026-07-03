@@ -1,0 +1,36 @@
+# parlhansard in a sandbox: the image holds only code; the existing local
+# archive (./data, ~4.5 GB raw) is bind-mounted at /data (the CLI reads
+# PARLHANSARD_DATA_DIR, so no --data-dir needed).
+#
+#   docker compose build
+#   docker compose run --rm pipeline normalize wa --workers 8   # no network
+#   docker compose run --rm pipeline aggregate
+#   docker compose run --rm pipeline db --out /data/hansard.duckdb
+#   docker compose run --rm harvest harvest wa --start 2026-06-01 --end 2026-07-03 --refresh-window 45
+#
+# `pipeline` is the sandboxed default: no network, read-only root filesystem,
+# all capabilities dropped — it can only read/write the mounted data volume.
+# `harvest` is identical but with network access (it must reach the
+# parliament APIs); use it only for the harvest stage.
+
+x-base: &base
+  build: .
+  image: parlhansard
+  init: true # reap normalize's worker processes on Ctrl+C
+  volumes:
+    - ./data:/data
+  read_only: true
+  tmpfs:
+    - /tmp # DuckDB/pyarrow scratch space
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  pipeline:
+    <<: *base
+    network_mode: none
+
+  harvest:
+    <<: *base

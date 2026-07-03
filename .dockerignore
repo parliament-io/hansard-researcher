@@ -1,0 +1,27 @@
+# data plane stays on the host and is mounted as a volume — never baked in
+# (raw/silver contain Hansard text; the archive is ~4.5 GB)
+data/
+logs/
+*.duckdb
+*.duckdb.wal
+
+# not needed to build or run the pipeline image
+.git/
+.github/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+.vscode/
+dashboards/
+tests/
+docs/
+samples/
+PLAN.md
+Dockerfile
+compose.yaml
+.dockerignore
