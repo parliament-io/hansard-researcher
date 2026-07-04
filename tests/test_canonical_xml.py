@@ -140,3 +140,35 @@ def test_leading_comment_is_tolerated():
     content = (FIXTURES / "extract_0001.xml").read_bytes()
     assert b"<!--" in content.split(b"<hansard")[0]
     parse_extract(content, jurisdiction=Jurisdiction.WA)
+
+
+def test_committee_volume_identity_from_name():
+    """SA committee volumes carry the parent chamber in <house> and their
+    identity in <name>: both volumes of one date must not collide into one
+    fragment_id / silver partition (real data loss — ~14k SA rows)."""
+    def volume(name: str, house: str) -> bytes:
+        return f"""<hansard id="x" schemaVersion="1.0">
+          <name>{name}</name>
+          <date date="2026-06-18" />
+          <house>{house}</house>
+          <proceeding></proceeding>
+        </hansard>""".encode()
+
+    committee = parse_extract(
+        volume("Estimates Committee A", "House of Assembly"),
+        jurisdiction=Jurisdiction.SA, extract_index=1,
+    )
+    chamber = parse_extract(
+        volume("House of Assembly", "House of Assembly"),
+        jurisdiction=Jurisdiction.SA, extract_index=1,
+    )
+    assert committee.house == "Estimates Committee A"
+    assert committee.committee_name == "Estimates Committee A"
+    assert committee.extensions["parent_house"] == "House of Assembly"
+    assert chamber.house == "House of Assembly"
+    assert "parent_house" not in chamber.extensions
+
+    committee_daily = stitch_daily([committee])
+    chamber_daily = stitch_daily([chamber])
+    assert committee_daily.fragment_id != chamber_daily.fragment_id
+    assert committee_daily.extensions["parent_house"] == "House of Assembly"

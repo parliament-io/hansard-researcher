@@ -490,15 +490,32 @@ def parse_extract(
     modified_el = root.find("dateModified")
     start_page, end_page = root.find("startPage"), root.find("endPage")
 
+    # SA committee volumes (Estimates Committee A/B, ...) carry the parent
+    # chamber in <house> and their own identity in <name> — raw folders
+    # (lh/eca/...) are distinct, but partitioning on <house> would collide
+    # both volumes of one date into a single silver partition, where
+    # delete_matching silently drops the first-written volume, and
+    # stitch_daily would mint the SAME fragment_id for both. The <name> is
+    # the volume identity: partition and identify off it; the parent
+    # chamber survives in extensions["parent_house"].
+    header_name = _child_text(root, "name")
+    header_house = _child_text(root, "house")
+    committee_name = _child_text(root, "committeeName")
+    parent_house = None
+    if header_name and header_house and header_name != header_house:
+        committee_name = committee_name or header_name
+        parent_house = header_house
+        header_house = header_name
+
     fragment = Fragment(
         fragment_id="",  # assigned by stitch_daily / caller
         jurisdiction=jurisdiction,
         source_doc_id=root.get("id"),
         schema_version=root.get("schemaVersion"),
-        name=_child_text(root, "name"),
+        name=header_name,
         date=date_value,
-        house=_child_text(root, "house"),
-        committee_name=_child_text(root, "committeeName"),
+        house=header_house,
+        committee_name=committee_name,
         venue=_child_text(root, "venue"),
         parliament_num=_parse_int(_child_text(root, "parliamentNum")),
         session_num=_parse_int(_child_text(root, "sessionNum")),
@@ -515,6 +532,8 @@ def parse_extract(
     )
     stage = _child_text(root, "reviewStage")
     fragment.review_stage = _enum_or_ext(stage, ReviewStage, fragment, "reviewStage")
+    if parent_house:
+        fragment.extensions["parent_house"] = parent_house
     if extract_index is not None:
         fragment.extensions["extract_index"] = str(extract_index)
 
@@ -659,7 +678,12 @@ def stitch_daily(extracts: list[Fragment]) -> Fragment:
             "texts": [],
             "attendees": [],
             "meeting_time_marks": [],
-            "extensions": {"extract_count": str(len(extracts))},
+            "extensions": {"extract_count": str(len(extracts))}
+            | (
+                {"parent_house": first.extensions["parent_house"]}
+                if "parent_house" in first.extensions
+                else {}
+            ),
         }
     )
 
