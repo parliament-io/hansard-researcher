@@ -11,6 +11,11 @@ classifier (engine:model) so providers never mix.
 ```sql models
 select distinct engine || ':' || model as model_key, engine, model
 from hansard.theme_by_week
+-- the source layer joins a sentinel row into empty theme cubes (Evidence
+-- writes an invalid 0-byte parquet for empty results; see
+-- sources/hansard/*.sql) — drop it; every other query on this page filters
+-- by engine:model, which the null row never matches
+where engine is not null
 order by 1
 ```
 
@@ -32,7 +37,7 @@ order by jurisdiction
     <Column id=jurisdiction />
     <Column id=total_subjects fmt=num0 />
     <Column id=classified_subjects fmt=num0 />
-    <Column id=classified_pct title="Classified %" contentType=colorscale scaleColor=green />
+    <Column id=classified_pct title="Classified %" fmt='0.0"%"' contentType=colorscale scaleColor=green />
 </DataTable>
 
 ## The map: theme share by jurisdiction
@@ -88,9 +93,9 @@ limit 15
 <DataTable data={common_themes} title="Themes every parliament debates (most uniform first)">
     <Column id=theme_name />
     <Column id=jurisdictions />
-    <Column id=avg_share_pct title="Avg share %" />
-    <Column id=min_share_pct title="Min %" />
-    <Column id=max_share_pct title="Max %" />
+    <Column id=avg_share_pct title="Avg share %" fmt='0.00"%"' />
+    <Column id=min_share_pct title="Min %" fmt='0.00"%"' />
+    <Column id=max_share_pct title="Max %" fmt='0.00"%"' />
     <Column id=spread title="Spread (CV)" contentType=colorscale scaleColor=blue />
 </DataTable>
 
@@ -125,8 +130,8 @@ order by s.jurisdiction, lift desc
 
 <DataTable data={distinctive} title="Most distinctive themes per jurisdiction (top 5 by lift)" groupBy=jurisdiction>
     <Column id=theme_name />
-    <Column id=share_pct title="Local share %" />
-    <Column id=overall_pct title="All parliaments %" />
+    <Column id=share_pct title="Local share %" fmt='0.00"%"' />
+    <Column id=overall_pct title="All parliaments %" fmt='0.00"%"' />
     <Column id=lift contentType=colorscale scaleColor=red />
 </DataTable>
 
@@ -155,14 +160,14 @@ with weekly_totals as (
 )
 select
     t.jurisdiction,
-    t.iso_year || '-W' || lpad(t.iso_week::varchar, 2, '0') as week,
+    min(t.week_start_sitting)::date as week,
     round(100.0 * sum(t.top_rank_occurrences) / any_value(w.week_total), 1)
         as share_pct
 from hansard.theme_by_week t
 join weekly_totals w using (jurisdiction, iso_year, iso_week)
 where t.engine || ':' || t.model = '${inputs.model.value}'
   and t.theme_id = '${inputs.theme.value}'
-group by 1, 2
+group by t.jurisdiction, t.iso_year, t.iso_week
 order by 2
 ```
 
@@ -179,7 +184,9 @@ order by 2
 with weekly as (
     select
         jurisdiction,
-        iso_year || '-W' || lpad(iso_week::varchar, 2, '0') as week,
+        -- iso_year arrives as a double from the source extraction — cast
+        -- or the label renders as '2019.0-W37'
+        iso_year::int || '-W' || lpad(iso_week::int::varchar, 2, '0') as week,
         sum(top_rank_occurrences) as subjects
     from hansard.theme_by_week
     where engine || ':' || model = '${inputs.model.value}'

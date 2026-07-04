@@ -13,6 +13,10 @@ obsessions, theme travel — see [Themes Across Parliaments](/themes-compare).
 ```sql models
 select distinct engine || ':' || model as model_key, engine, model
 from hansard.theme_by_week
+-- the source layer joins a sentinel row into empty theme cubes (Evidence
+-- writes an invalid 0-byte parquet for empty results; see
+-- sources/hansard/*.sql) — drop it
+where engine is not null
 order by 1
 ```
 
@@ -110,7 +114,10 @@ select jurisdiction, count(*) as subjects,
        count(*) filter (reason = 'unclassified') as unclassified,
        count(*) filter (reason = 'low_confidence') as low_confidence
 from hansard.theme_candidates
+-- theme_candidates is empty when every subject classifies above the floor;
+-- the source layer's sentinel row stands in for it — drop it
+where jurisdiction is not null
 group by 1 order by 1
 ```
 
-<DataTable data={candidates} title="Theme candidates — subjects the taxonomy could not place (curation queue)" />
+<DataTable data={candidates} title="Theme candidates — subjects the taxonomy could not place (curation queue)" emptySet=pass emptyMessage="Curation queue is empty — every classified subject scored above the curator floor." />
