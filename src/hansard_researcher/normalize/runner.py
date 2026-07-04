@@ -39,4 +39,10 @@ def normalize_day(
     ]
     adapter = get_adapter(event.jurisdiction)
     fragments = list(adapter.normalize(docs))
+    # day-level pass, after stitching: anchors wall-clock turn times to the
+    # sitting's zone and rolls past-midnight readings onto the next date
+    from hansard_researcher.normalize.clock import apply_running_clock
+
+    for fragment in fragments:
+        apply_running_clock(fragment, jurisdiction)
     return write_silver(fragments, Path(out_dir))

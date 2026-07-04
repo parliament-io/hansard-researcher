@@ -125,7 +125,11 @@ def test_legacy_bold_marker_attribution():
     assert len(member.texts) == 2
     assert "bold elements" in member.texts[0].clean_text
     assert "2016 conversion" in member.texts[1].clean_text
-    assert member.start_time is None  # legacy files carry no Time-H clocks
+    # 2005-2015 era: talk.time carries the full ISO timestamp with offset —
+    # document truth, parsed verbatim (aware), never adjusted by the clock pass
+    assert member.start_time == dt.datetime(
+        2010, 5, 11, 23, 35, tzinfo=dt.timezone(dt.timedelta(hours=10))
+    )
     assert speaker.member_source_id == "34"
     assert speaker.name == "Mr SPEAKER"
     assert "resume their seat" in speaker.texts[0].clean_text

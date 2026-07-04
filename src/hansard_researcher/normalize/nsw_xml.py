@@ -48,7 +48,7 @@ from hansard_researcher.model.canonical import (
     TextPara,
     VoteValue,
 )
-from hansard_researcher.normalize.canonical_xml import _clean
+from hansard_researcher.normalize.canonical_xml import _clean, _parse_datetime
 
 _TALK_KINDS = {
     "speech": TalkerKind.SPEECH,
@@ -89,6 +89,14 @@ def _parse_meta_talkers(data: etree._Element, ctx: _Ctx) -> list[Talker]:
         meta = talk_el.find("talk.start/talker")
         talker = Talker(document_order=ctx.next_order(), kind=_TALK_KINDS[tag])
         if meta is not None:
+            # 2005-2015 era: talk.time carries a full ISO timestamp with UTC
+            # offset (empty from the 2016 conversion on, where Time-H spans
+            # take over). Document truth — the running-clock pass never
+            # adjusts it.
+            talk_time = _parse_datetime((meta.findtext("talk.time") or "").strip())
+            if talk_time is not None:
+                talker.start_time = talk_time
+                ctx.time = talk_time
             talker.member_source_id = (meta.findtext("id") or "").strip() or None
             talker.name = _clean(meta.findtext("name") or "") or None
             talker.electorate = _clean(meta.findtext("electorate") or "") or None
@@ -323,7 +331,12 @@ def parse_nsw_fragment(
                 clock = _clock_of(p, date)
                 if clock is not None:
                     ctx.time = clock
-                    current.start_time = clock
+                    if current.start_time is None:
+                        # wall-clock reading (Time-H span): the day-level
+                        # running-clock pass anchors the zone and handles
+                        # midnight rollover. Never overwrites talk.time.
+                        current.start_time = clock
+                        current.extensions["time_source"] = "clock"
             raw = "".join(p.itertext())
             cls = p.get("class") or None
             kind = TextKind.HEADING if (cls or "").endswith("-H") else TextKind.PARAGRAPH

@@ -17,6 +17,19 @@
           <topicinfo>
             <text>Synthetic Legacy Motion</text>
           </topicinfo>
+          <speech pos="6">
+            <talk.start>
+              <talker>
+                <talk.time>2010-05-11T23:35:00+10:00</talk.time>
+                <id>12</id>
+                <name>Mr Test Legacy</name>
+                <electorate id="">Testland</electorate>
+                <portfolios></portfolios>
+                <question.number></question.number>
+                <question.date></question.date>
+              </talker>
+            </talk.start>
+          </speech>
         </topic>
       </proceeding>
     </fragment.data>

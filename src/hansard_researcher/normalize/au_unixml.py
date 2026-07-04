@@ -187,6 +187,15 @@ def _parse_talk(el: etree._Element, kind: TalkerKind, ctx: _Ctx) -> list[Talker]
                 if t.kind is kind:
                     t.continued = True
             talkers.extend(continuation)
+    if main.start_time is None:
+        # time.stamp is never populated in live payloads (era census
+        # 2026-07-04); the first HPS-Time span inside the talk anchors the
+        # turn instead. Wall-clock reading — the day-level running-clock
+        # pass adds the zone and midnight rollover.
+        anchor = next((t.time_anchor for t in main.texts if t.time_anchor is not None), None)
+        if anchor is not None:
+            main.start_time = anchor
+            main.extensions["time_source"] = "clock"
     return talkers
 
 

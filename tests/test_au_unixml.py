@@ -69,6 +69,26 @@ def test_time_from_body_span(daily):
     assert question.texts[0].time_anchor == dt.datetime(2026, 3, 11, 14, 1)
 
 
+def test_talker_start_time_from_hps_time_span(daily):
+    """time.stamp is never populated in live payloads: the first HPS-Time
+    span anchors the turn, marked clock-derived so the day-level pass can
+    zone-localize and midnight-roll it."""
+    question = daily.proceedings[0].subjects[0].talkers[0]
+    assert question.start_time == dt.datetime(2026, 3, 11, 14, 1)
+    assert question.extensions["time_source"] == "clock"
+
+
+def test_running_clock_localizes_au_day(daily):
+    from hansard_researcher.normalize.clock import apply_running_clock
+
+    apply_running_clock(daily, "au")
+    assert daily.extensions["clock_tz"] == "zone:Australia/Sydney"
+    question = daily.proceedings[0].subjects[0].talkers[0]
+    # March 2026 is AEDT (+11) — DST-correct localization of the 14:01 span
+    assert question.start_time.utcoffset() == dt.timedelta(hours=11)
+    assert question.start_time.replace(tzinfo=None) == dt.datetime(2026, 3, 11, 14, 1)
+
+
 def test_page_forward_fill(daily):
     interjection = daily.proceedings[0].subjects[0].talkers[2]
     assert interjection.texts[0].page_no == "12"
