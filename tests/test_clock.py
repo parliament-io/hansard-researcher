@@ -108,6 +108,27 @@ def test_sitting_end_before_start_rolls():
     assert day.extensions["clock_rolled"] == "1"
 
 
+def test_out_of_order_blocks_do_not_roll():
+    """A small backwards jump (14:00 -> 09:00) is an out-of-order transcript
+    block, not a midnight wrap: it stays on the sitting date (regression:
+    unguarded rolling cascaded real NSW days up to +3 days)."""
+    day = _day([_clock_talker(1, 14, 0), _clock_talker(2, 9, 0), _clock_talker(3, 15, 30)])
+    apply_running_clock(day, "nsw")
+    talkers = day.proceedings[0].subjects[0].talkers
+    assert all(t.start_time.date() == dt.date(2023, 11, 30) for t in talkers)
+    assert all("clock_rolled" not in t.extensions for t in talkers)
+
+
+def test_wrap_then_out_of_order_stays_on_next_day():
+    """23:50 -> 00:10 wraps; a later 00:05 reading joins the after-midnight
+    portion (one roll) but can never cascade to day +2."""
+    day = _day([_clock_talker(1, 23, 50), _clock_talker(2, 0, 10), _clock_talker(3, 0, 5)])
+    apply_running_clock(day, "nsw")
+    first, second, third = day.proceedings[0].subjects[0].talkers
+    assert second.start_time == dt.datetime(2023, 12, 1, 0, 10, tzinfo=AEDT)
+    assert third.start_time == dt.datetime(2023, 12, 1, 0, 5, tzinfo=AEDT)
+
+
 def test_system_timestamp_never_defines_the_zone():
     """SA's dateModified is a UTC publishing-system timestamp — it must not
     hijack the sitting's offset (regression: real SA 2008-10-29 talkers were

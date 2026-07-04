@@ -35,6 +35,11 @@ from zoneinfo import ZoneInfo
 
 from hansard_researcher.model.canonical import Fragment, Talker
 
+#: a backwards clock reading only counts as a midnight wrap when the
+#: regression is bigger than this; smaller regressions are out-of-order
+#: transcript blocks and stay on their day
+_ROLL_THRESHOLD = dt.timedelta(hours=12)
+
 #: jurisdiction -> IANA zone, the fallback when no document offset exists.
 #: Federal parliament sits in Canberra (Sydney offsets).
 ZONES = {
@@ -107,10 +112,13 @@ def apply_running_clock(fragment: Fragment, jurisdiction: str) -> None:
             continue
         candidate = start.replace(tzinfo=tz)
         if talker.extensions.get("time_source") == "clock" and last is not None:
-            # earlier than the last reading => the sitting crossed midnight
-            # (bounded: a >24h regression is data noise, not a second night)
+            # a LARGE regression (23:50 -> 00:10 reads as ~-23:40) means the
+            # sitting crossed midnight; a small one (14:00 -> 09:00) is an
+            # out-of-order transcript block (written answers, corrections)
+            # and must NOT roll — unguarded rolling cascaded real NSW days
+            # up to +3 days. Bounded: at most two genuine wraps.
             for _ in range(2):
-                if candidate >= last:
+                if candidate >= last or last - candidate <= _ROLL_THRESHOLD:
                     break
                 candidate += dt.timedelta(days=1)
                 talker.extensions["clock_rolled"] = "1"
