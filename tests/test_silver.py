@@ -69,6 +69,31 @@ def test_write_silver_and_query_with_duckdb(daily, tmp_path):
     ).fetchall()
     assert dict(talkers) == {"answer": 1, "question": 1, "speech": 1}
 
+
+def test_pass_provenance_reaches_silver(daily, tmp_path):
+    """The day-pass flags (kind inference / clock provenance) must survive
+    the parquet roundtrip — they are what separates source markup from
+    inference downstream."""
+    from hansard_researcher.normalize.clock import _iter_talkers
+    from hansard_researcher.normalize.kinds import apply_kind_inference
+
+    talkers = sorted(_iter_talkers(daily), key=lambda t: t.document_order)
+    talkers[0].extensions["time_source"] = "clock"
+    talkers[0].extensions["clock_rolled"] = "1"
+    talkers[1].kind = None  # same member as a typed lead? force inference path
+    talkers[1].member_source_id = talkers[0].member_source_id
+    apply_kind_inference(daily)
+    write_silver([daily], tmp_path)
+
+    con = duckdb.connect()
+    (clock_rows, inferred_rows) = con.execute(
+        f"select count(*) filter (time_source = 'clock' and clock_rolled), "
+        f"count(*) filter (kind_inferred) "
+        f"from read_parquet('{tmp_path.as_posix()}/talkers/**/*.parquet', hive_partitioning=1)"
+    ).fetchone()
+    assert clock_rows == 1
+    assert inferred_rows == 1
+
     votes = con.execute(
         f"select vote, count(*) from read_parquet('{tmp_path.as_posix()}/division_votes"
         "/**/*.parquet', hive_partitioning=1) group by vote order by vote"

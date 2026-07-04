@@ -143,6 +143,14 @@ SCHEMAS: dict[str, pa.Schema] = {
             ("first_speech", pa.bool_()),
             ("continued", pa.bool_()),
             ("start_time", _TS),
+            # provenance for the day-level normalize passes: kind_inferred
+            # separates source markup from same-member inference;
+            # time_source is 'clock' for span-derived wall-clock readings
+            # (document times leave it null); clock_rolled marks turns the
+            # midnight rollover moved to the next date
+            ("kind_inferred", pa.bool_()),
+            ("time_source", pa.string()),
+            ("clock_rolled", pa.bool_()),
             ("paragraph_count", pa.int32()),
             ("word_count", pa.int32()),
             ("document_order", pa.int32()),
@@ -292,6 +300,9 @@ class _Flattener:
                 "first_speech": talker.first_speech,
                 "continued": talker.continued,
                 "start_time": talker.start_time,
+                "kind_inferred": "kind_inferred" in talker.extensions,
+                "time_source": talker.extensions.get("time_source"),
+                "clock_rolled": talker.extensions.get("clock_rolled") == "1",
                 "paragraph_count": len(talker.texts),
                 "word_count": _word_count(talker.texts),
                 "document_order": talker.document_order,
