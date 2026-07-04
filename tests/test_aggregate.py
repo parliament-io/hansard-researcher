@@ -258,6 +258,28 @@ def test_theme_cubes_from_enriched_assignments(tmp_path):
         ).fetchone()
         assert count == 0, empty_cube
 
+    # cross-jurisdiction marts: one classified subject -> the primary theme
+    # carries 100% of the share, shares sum to 100, coverage is exact
+    shares = _q(
+        tmp_path / "gold",
+        "select theme_id, subjects, share_pct from 'theme_share_by_jurisdiction.parquet'"
+        " where jurisdiction = 'nsw' order by share_pct desc",
+    ).fetchall()
+    assert sum(r[2] for r in shares) == 100.0
+    assert shares[0][1] == 1 and shares[0][2] == 100.0  # rank-1 theme owns the subject
+    (cov,) = _q(
+        tmp_path / "gold",
+        "select total_subjects, classified_subjects, classified_pct"
+        " from 'theme_coverage.parquet' where jurisdiction = 'nsw'",
+    ).fetchall()
+    assert cov == (1, 1, 100.0)
+    names = _q(
+        tmp_path / "gold",
+        "select theme_id, subject_name, occurrences from 'theme_subject_names.parquet'",
+    ).fetchall()
+    assert any(r[0] == shares[0][0] and r[2] == 1 for r in names)  # primary theme named
+    assert all(r[1] for r in names)  # names are official-record headings, never empty
+
 
 def test_pipeline_coverage(tmp_path):
     """One row per silver house-day joined with day-grain harvest info;
@@ -357,6 +379,7 @@ def test_theme_cubes_empty_without_enrichment(gold):
     for cube in (
         "theme_by_week", "theme_cooccurrence", "member_theme_rank",
         "bill_theme_link", "member_vote_by_theme", "theme_candidates",
+        "theme_share_by_jurisdiction", "theme_coverage", "theme_subject_names",
     ):
         assert counts[cube] == 0
         assert (gold_dir / f"{cube}.parquet").exists()

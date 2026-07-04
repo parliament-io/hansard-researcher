@@ -36,6 +36,13 @@ never mix:
 - ``member_vote_by_theme``     division votes joined to subject themes
 - ``theme_candidates``         curator-workflow port: unclassified or
                                low-confidence subjects (taxonomy gaps)
+- ``theme_share_by_jurisdiction``  theme share of each jurisdiction's
+                               classified debate (primary assignments only,
+                               shares sum to 100 within engine:model)
+- ``theme_coverage``           classified % per jurisdiction x engine:model —
+                               the comparability denominator
+- ``theme_subject_names``      top subject *names* per theme x jurisdiction
+                               (official-record headings, never debate text)
 
 Everything here is plain SQL over Parquet — reproducible by anyone with
 DuckDB. Gold is tiny (MBs), so each run is a full recompute: simple and
@@ -532,6 +539,76 @@ GOLD_QUERIES: dict[str, str] = {
         join themed_days using (jurisdiction, date, house)
         left join best b using (subject_id)
         where b.subject_id is null or b.best_score < 0.30
+    """,
+    # cross-jurisdiction comparison: shares use primary (rank-1) assignments
+    # so each subject counts once and shares sum to 100 within
+    # (engine, model, jurisdiction) — subject_occurrences would count every
+    # subject top-k times
+    "theme_share_by_jurisdiction": """
+        with primary_counts as (
+            select
+                engine, model, jurisdiction, theme_id,
+                any_value(theme_name)     as theme_name,
+                sum(top_rank_occurrences) as subjects
+            from theme_by_week
+            group by 1, 2, 3, 4
+        )
+        select
+            engine, model, jurisdiction, theme_id, theme_name, subjects,
+            round(100.0 * subjects / sum(subjects) over (
+                partition by engine, model, jurisdiction), 2) as share_pct
+        from primary_counts
+    """,
+    # comparability denominator: how much of each jurisdiction's debate a
+    # classifier has placed. Every jurisdiction appears for every
+    # engine:model, so partial coverage reads as a low %, not a missing row
+    "theme_coverage": """
+        with models as (
+            select distinct engine, model from subject_themes
+        ),
+        totals as (
+            select jurisdiction, count(distinct subject_id) as total_subjects
+            from subjects group by 1
+        ),
+        classified as (
+            select engine, model, jurisdiction,
+                   count(distinct subject_id) as classified_subjects
+            from subject_themes group by 1, 2, 3
+        )
+        select
+            m.engine, m.model, t.jurisdiction, t.total_subjects,
+            coalesce(c.classified_subjects, 0) as classified_subjects,
+            round(100.0 * coalesce(c.classified_subjects, 0)
+                / nullif(t.total_subjects, 0), 1) as classified_pct
+        from models m
+        cross join totals t
+        left join classified c using (engine, model, jurisdiction)
+    """,
+    # subject *names* only — headings from the official record, the same
+    # exposure as theme_candidates.subject_name (licensing stance,
+    # LICENSES-DATA.md); dedup key mirrors bill_theme_link's bill_key
+    "theme_subject_names": """
+        with named as (
+            select
+                st.engine, st.model, st.jurisdiction, st.theme_id,
+                any_value(st.theme_name) as theme_name,
+                lower(trim(regexp_replace(s.name, '\\s+', ' ', 'g')))
+                    as subject_key,
+                arg_max(s.name, s.date)  as subject_name,
+                count(*)                 as occurrences
+            from subject_themes st
+            join subjects s using (subject_id)
+            where st.rank = 1 and s.name is not null
+            group by st.engine, st.model, st.jurisdiction, st.theme_id,
+                     subject_key
+        )
+        select
+            engine, model, jurisdiction, theme_id, theme_name,
+            subject_name, occurrences
+        from named
+        qualify row_number() over (
+            partition by engine, model, jurisdiction, theme_id
+            order by occurrences desc, subject_key) <= 10
     """,
     # ops cube: one row per silver house-day (+ rows for harvested days that
     # never normalized, house null). raw_houses/raw_documents/harvested_at
