@@ -3,7 +3,7 @@ title: Themes
 ---
 
 What parliament debates, classified against the open
-[seed taxonomy](https://github.com/hansard-researcher/hansard-researcher/tree/main/src/hansard_researcher/reference/themes)
+[seed taxonomy](https://github.com/parliament-io/hansard-researcher/tree/main/src/hansard_researcher/reference/themes)
 (≤30 broad categories per locale). Classification is **bring-your-own
 provider** (`hansard-researcher enrich themes`) — this page is empty until it has
 been run; each chart is scoped to one engine+model so different providers

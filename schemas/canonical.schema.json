@@ -1338,7 +1338,7 @@
     "jurisdiction",
     "date"
   ],
-  "title": "parlhansard canonical Hansard fragment",
+  "title": "Hansard Researcher canonical Hansard fragment",
   "type": "object",
-  "$id": "https://github.com/parlhansard/parlhansard/schemas/canonical.schema.json"
+  "$id": "https://github.com/parliament-io/hansard-researcher/schemas/canonical.schema.json"
 }

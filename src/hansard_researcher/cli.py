@@ -39,7 +39,7 @@ def cmd_sources(_: argparse.Namespace) -> int:
 
 def cmd_schema(args: argparse.Namespace) -> int:
     schema = Fragment.model_json_schema()
-    schema["$id"] = "https://github.com/hansard-researcher/hansard-researcher/schemas/canonical.schema.json"
+    schema["$id"] = "https://github.com/parliament-io/hansard-researcher/schemas/canonical.schema.json"
     schema["title"] = "Hansard Researcher canonical Hansard fragment"
     text = json.dumps(schema, indent=2, ensure_ascii=False) + "\n"
     if args.out:

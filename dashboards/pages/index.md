@@ -6,7 +6,7 @@ Open analytics over Parliamentary Hansard, rebuilt from official sources every
 sitting day. All figures on this site are **derived statistics** — counts,
 votes, timings — computed from the official record; full text remains with
 each parliament (see the
-[data licensing notes](https://github.com/hansard-researcher/hansard-researcher/blob/main/LICENSES-DATA.md)).
+[data licensing notes](https://github.com/parliament-io/hansard-researcher/blob/main/LICENSES-DATA.md)).
 
 ```sql overview
 select

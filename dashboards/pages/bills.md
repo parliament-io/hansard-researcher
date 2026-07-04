@@ -4,7 +4,7 @@ title: Bills
 
 Every bill's journey through parliament — sitting by sitting, across both
 houses. Stages are shown as published; where a stage maps into the curated
-[stage vocabulary](https://github.com/hansard-researcher/hansard-researcher/tree/main/src/hansard_researcher/reference/stages)
+[stage vocabulary](https://github.com/parliament-io/hansard-researcher/tree/main/src/hansard_researcher/reference/stages)
 it also gets a canonical stage (so the NSW Assembly's "Agreement in
 Principle" lines up with "Second Reading" elsewhere).
 
