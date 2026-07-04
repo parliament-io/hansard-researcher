@@ -46,4 +46,6 @@ order by 2
 - [Members](/members) — activity league tables, words spoken, first speeches
 - [Question Time](/question-time) — who asks, who answers, response patterns
 - [Divisions](/divisions) — recorded votes with per-member breakdowns
+- [Bills](/bills) — each bill's journey through the houses, stage by stage
+- [Themes](/themes) — what parliament debates (BYO-provider classification)
 - [Sitting Days](/sittings) — chamber rhythm and volume

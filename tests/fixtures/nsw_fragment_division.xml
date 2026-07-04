@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- synthetic; mirrors the real structure (e.g. la 2025-10-22 subject 0002):
+     division under topic/subproceeding; blank member names; pairs grouped;
+     empty questionresolved -->
+<hansard>
+  <hansard.header>
+    <date>2025-10-22</date>
+    <parliament.number>58</parliament.number>
+    <session.number>1</session.number>
+    <chamber>Legislative Assembly</chamber>
+    <draft>false</draft>
+  </hansard.header>
+  <chamber.xscript>
+    <fragment.data>
+      <proceeding>
+        <proceedinginfo><text>Bills</text></proceedinginfo>
+        <topic>
+          <topicinfo><text>Synthetic Memorial Bill 2025</text></topicinfo>
+          <subproceeding>
+            <subproceedinginfo><text>Consideration In Detail</text></subproceedinginfo>
+            <division>
+              <ayes>
+                <text></text>
+                <count>2</count>
+                <aye><id>81</id><name></name></aye>
+                <aye><id>2229</id><name></name></aye>
+              </ayes>
+              <noes>
+                <text></text>
+                <count>3</count>
+                <noe><id>28</id><name></name></noe>
+                <noe><id>93</id><name></name></noe>
+                <noe><id>115</id><name></name></noe>
+              </noes>
+              <pairs>
+                <group>
+                  <pair><id>118</id><name></name></pair>
+                  <pair><id>2293</id><name></name></pair>
+                </group>
+              </pairs>
+              <questionresolved/>
+            </division>
+          </subproceeding>
+        </topic>
+      </proceeding>
+    </fragment.data>
+    <fragment.text><body><p>[Deferred division]</p></body></fragment.text>
+  </chamber.xscript>
+</hansard>

@@ -23,7 +23,7 @@ notes, and what's next.
 | House-days | 153 | 1,952 | 1,021 | 2,117 | **5,243** |
 | Speaking turns | 46k | 651k | 304k | 246k | **1.25M** |
 | Text paragraphs | 157k | 2.16M | 1.62M | 2.52M | **6.4M** |
-| Division member votes | 4.6k | 32k | 513k | — (prose only) | **549k** |
+| Division member votes | 4.6k | 32k | 513k | 342k | **891k** |
 
 Boundaries are *moving*: parliaments upload historic conversions over time
 (NSW migrates old Word documents; WA/SA are deepening). Harvesters probe—
@@ -44,7 +44,7 @@ on a laptop.
 
 ```bash
 uv sync
-uv run pytest                        # 70 tests
+uv run pytest                        # 108 tests
 uv run parlhansard sources           # adapter status per jurisdiction
 uv run parlhansard schema            # emit canonical JSON Schema
 
@@ -54,6 +54,10 @@ uv run parlhansard harvest wa --start 2026-06-01 --end 2026-07-03 --refresh-wind
 
 # raw XML -> silver Parquet (parallel across house-days; default CPU-1 workers)
 uv run parlhansard normalize wa --workers 8
+
+# member register (Tier 2 reference data; SA live) — raw snapshots are
+# stored under data/reference/raw so --offline rebuilds without network
+uv run parlhansard reference sa
 
 # silver -> gold cubes (full recompute, seconds) + self-contained DuckDB
 uv run parlhansard aggregate
@@ -66,6 +70,68 @@ uv run python -c "import duckdb; print(duckdb.sql(
 
 Full backfill = the same `harvest` command with a wide date range; it is
 idempotent and newest-first, and interrupting/resuming is always safe.
+
+## Enrichment (Tier 3 — optional, bring your own processing)
+
+Embeddings + semantic search never run unless you configure a provider, and
+the structural pipeline above never needs one. Point at **any**
+OpenAI-compatible endpoint — a local server (no key) or a hosted API with
+your own key — or run embeddings in-process:
+
+```bash
+# everything local via Docker: Ollama (models) + Qdrant (vector search),
+# published on localhost only
+docker compose --profile enrich up -d
+docker compose exec ollama ollama pull nomic-embed-text
+
+uv run parlhansard enrich embed wa --provider ollama
+uv run parlhansard enrich search "housing affordability" --provider ollama
+
+# at archive scale, index into Qdrant for fast ANN search (join keys only —
+# no Hansard prose enters the index; text hydrates from local silver)
+uv run parlhansard enrich index wa --provider ollama
+uv run parlhansard enrich search "housing affordability" --provider ollama --backend qdrant
+
+# theme classification against the seed taxonomy (reference/themes/*.yaml):
+# embedding engine = cheap, works with any provider; llm engine = higher
+# quality via a chat model. Re-running `aggregate` then populates the six
+# theme gold cubes (theme_by_week, theme_cooccurrence, member_theme_rank,
+# bill_theme_link, member_vote_by_theme, theme_candidates) + /themes page
+uv run parlhansard enrich themes wa --provider ollama
+uv run parlhansard enrich themes wa --provider ollama --engine llm
+
+# hosted, BYO key
+export PARLHANSARD_ENRICH_API_KEY=sk-...
+uv run parlhansard enrich embed wa --provider openai
+
+# in-process sentence-transformers (no server at all; pulls torch)
+uv sync --extra local
+uv run parlhansard enrich embed wa --provider local
+
+# anything else that speaks the OpenAI API
+export PARLHANSARD_ENRICH_BASE_URL=https://my-gateway/v1   # + _API_KEY, _EMBED_MODEL
+```
+
+Vectors land in `data/enriched/` (join keys only — no Hansard prose) with
+the model id in every dedup key, so re-running with a different model or
+provider is incremental and coherent. Keys live only in your environment.
+
+## Docker (sandboxed)
+
+The image holds code only; your local `data/` archive mounts at `/data`.
+The default `pipeline` service has **no network**, a read-only root
+filesystem and no capabilities — it can only read/write the data volume:
+
+```bash
+docker compose build
+docker compose run --rm pipeline normalize wa --workers 8   # fully offline
+docker compose run --rm pipeline aggregate
+docker compose run --rm harvest harvest wa --start 2026-06-01 --end 2026-07-04
+```
+
+An optional `--profile ollama` adds a local model server on an
+internal-only network, so Tier 3 runs with Hansard text never leaving the
+machine (commands in `compose.yaml`).
 
 ## Dashboards
 
@@ -101,9 +167,17 @@ src/parlhansard/
   normalize/      canonical_xml (WA/SA + stitch_daily), au_unixml, nsw_xml,
                   silver writer, parallel runner
   aggregate/      gold cube SQL (cubes.py) + hansard.duckdb builder
-  cli.py          harvest | normalize | aggregate | db | sources | schema
+  reference/      member registers (sa, nsw live) + curated YAML: stage
+                  vocabulary (names -> bill stages) and seed theme taxonomy
+                  (per-locale debate categories for Tier 3 classification)
+  enrich/         optional Tier 3: providers (BYO key / local model),
+                  embeddings, semantic search
+  cli.py          harvest | normalize | aggregate | db | reference | enrich |
+                  sources | schema
 samples/          redistributable source samples (federal CC BY-NC-ND verbatim)
 dashboards/       Evidence.dev site (gold-only)
-data/             local only, gitignored: raw/ silver/ gold/ + backfill logs
+data/             local only, gitignored: raw/ silver/ gold/ enriched/ + logs
+Dockerfile        pipeline image (code only; data mounts at /data)
+compose.yaml      sandboxed services: pipeline (no network), harvest, ollama profile
 .github/workflows publish.yml (daily pipeline + Pages), ci.yml (lint/test/schema-drift)
 ```

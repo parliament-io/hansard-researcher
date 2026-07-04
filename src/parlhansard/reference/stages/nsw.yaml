@@ -1,0 +1,27 @@
+# Stage vocabulary: subproceeding names as published -> canonical bill stage.
+# Matching is case-insensitive exact; unlisted names keep a null stage in gold.
+# Seeded from the observed name distribution (2026-07-04); crowd-source additions.
+# NSW LA uses "Agreement in Principle" as its second-reading-equivalent stage.
+jurisdiction: nsw
+stages:
+  first_reading:
+    - First Reading
+  second_reading:
+    - Second Reading
+    - Second Reading Speech
+    - Second Reading Debate
+    - Agreement in Principle
+  committee:
+    - In Committee
+    - Consideration in Detail
+  report:
+    - Report
+    - Adoption of Report
+  third_reading:
+    - Third Reading
+  passed:
+    - Passing of the Bill
+  returned:
+    - Returned
+  assent:
+    - Assent

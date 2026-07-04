@@ -76,3 +76,34 @@ def test_house_code():
     assert house_code("Legislative Assembly") == "la"
     assert house_code("Legislative Council") == "lc"
     assert house_code(None) == "unknown"
+
+
+# see fixture comment: mirrors real structure, blank names, grouped pairs
+DIVISION_FRAGMENT = (FIXTURES / "nsw_fragment_division.xml").read_bytes()
+
+
+def test_division_parsed_from_fragment_data():
+    fragment = parse_nsw_fragment(DIVISION_FRAGMENT, doc_id="TEST-DIV-0001")
+    subject = fragment.proceedings[0].subjects[0]
+    (sub,) = subject.subproceedings
+    assert sub.name == "Consideration In Detail"
+    (division,) = sub.divisions
+
+    assert (division.ayes_count, division.noes_count, division.pairs_count) == (2, 3, 1)
+    assert division.result is not None and division.result.value == "noes"
+    assert division.extensions["result_derived"] == "true"
+
+    votes = {(v.member_source_id, v.vote.value) for v in division.votes}
+    assert votes == {
+        ("81", "AYES"), ("2229", "AYES"),
+        ("28", "NOES"), ("93", "NOES"), ("115", "NOES"),
+        ("118", "PAIRS"), ("2293", "PAIRS"),
+    }
+    # names are blank at the source — resolved later via the member register
+    assert all(v.member_name is None for v in division.votes)
+
+
+def test_division_survives_stitching():
+    daily = stitch_daily([parse_nsw_fragment(DIVISION_FRAGMENT, doc_id="TEST-DIV-0001")])
+    (division,) = daily.proceedings[0].subjects[0].subproceedings[0].divisions
+    assert len(division.votes) == 7

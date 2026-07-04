@@ -20,6 +20,18 @@ Notes for downstream users:
 - Derived tables published by this project (counts, votes, timings, activity
   metrics) are facts about parliamentary proceedings; no Hansard prose is
   included.
+- Optional enrichment outputs stay local and carry no prose either:
+  embeddings (`data/enriched/`, and any Qdrant collection built from them)
+  hold vectors + row keys — vectors are non-expressive and do not reconstruct
+  text (a considered judgement call, noted here for transparency); theme
+  assignments hold taxonomy ids + keys. Display text always hydrates from
+  your local silver build. If you point enrichment at a **hosted** provider,
+  you are transmitting Hansard text to that provider under your own
+  arrangement with it — the local-server path (Ollama/Qdrant via
+  `docker compose --profile enrich`) keeps text on your machine.
+- Member register data (`parlhansard reference`) is compiled from official
+  parliamentary websites/APIs: names, party, electorate, service dates —
+  facts, published with attribution to the source parliament.
 - If you rebuild the full-text tables locally (`parlhansard harvest` +
   `normalize`), your local copy is obtained from the official source under
   that parliament's terms — including, for federal data, the **non-commercial**

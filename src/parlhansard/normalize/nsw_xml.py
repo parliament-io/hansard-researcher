@@ -14,8 +14,13 @@ Speaker attribution inside ``fragment.text``: paragraphs open with
 markers; paragraphs are assigned to the most recent marker. ``Time-H`` +
 ``HiddenTime-H`` spans carry the clock (HH:MM + :SS).
 
-Not yet parsed (tracked via ``unhandled:`` extensions where applicable):
-NSW divisions — they appear only in the prose body, not in ``fragment.data``.
+Divisions ARE structured in ``fragment.data`` (a source extension beyond the
+v1 XSD; the prose body only carries a "[Deferred division]" marker):
+``topic/subproceeding/division`` with ``ayes``/``noes`` (``text``, ``count``,
+per-member ``aye``/``noe`` of ``id`` + ``name``) and ``pairs`` (``group`` →
+two ``pair`` members). **The member ``name`` elements are blank** — ``id``
+is the parliament ``pk`` (same id space as the member register and talker
+``data-value``), so names/party resolve via ``data/reference/members``.
 """
 
 from __future__ import annotations
@@ -25,15 +30,20 @@ import datetime as dt
 from lxml import etree
 
 from parlhansard.model.canonical import (
+    Division,
+    DivisionResult,
+    DivisionVote,
     Fragment,
     Jurisdiction,
     Proceeding,
     ReviewStage,
     Subject,
+    Subproceeding,
     Talker,
     TalkerKind,
     TextKind,
     TextPara,
+    VoteValue,
 )
 from parlhansard.normalize.canonical_xml import _clean
 
@@ -94,6 +104,68 @@ def _parse_meta_talkers(data: etree._Element, ctx: _Ctx) -> list[Talker]:
                 talker.extensions["question_date"] = qdate
         talkers.append(talker)
     return talkers
+
+
+_VOTE_TAGS = {"aye": VoteValue.AYES, "noe": VoteValue.NOES, "pair": VoteValue.PAIRS}
+_COUNT_FIELDS = {"ayes": "ayes_count", "noes": "noes_count", "abstentions": "abstentions_count"}
+
+
+def _parse_division(div_el: etree._Element, ctx: _Ctx) -> Division:
+    """One structured NSW division: counts + per-member votes (blank names)."""
+    division = Division(document_order=ctx.next_order())
+    for group_el in div_el:
+        tag = _local(group_el)
+        if tag in ("ayes", "noes", "pairs", "abstentions"):
+            count_text = (group_el.findtext("count") or "").strip()
+            if tag in _COUNT_FIELDS and count_text.isdigit():
+                setattr(division, _COUNT_FIELDS[tag], int(count_text))
+            preamble = _clean(group_el.findtext("text") or "")
+            if preamble:
+                division.texts.append(
+                    TextPara(
+                        document_order=ctx.next_order(),
+                        raw_text=preamble,
+                        clean_text=preamble,
+                    )
+                )
+            for member_el in group_el.iter():
+                member_tag = _local(member_el)
+                if member_tag not in _VOTE_TAGS:
+                    continue
+                member_id = (member_el.findtext("id") or "").strip() or None
+                # names are blank at the source; the register fills them in
+                name = _clean(member_el.findtext("name") or "") or None
+                if member_id or name:
+                    division.votes.append(
+                        DivisionVote(
+                            document_order=ctx.next_order(),
+                            member_source_id=member_id,
+                            member_name=name,
+                            vote=_VOTE_TAGS[member_tag],
+                        )
+                    )
+            if tag == "pairs":
+                groups = group_el.findall("group")
+                if count_text.isdigit():
+                    division.pairs_count = int(count_text)
+                elif groups:
+                    division.pairs_count = len(groups)
+        elif tag == "questionresolved":
+            resolved = _clean("".join(group_el.itertext()))
+            if resolved:
+                division.extensions["question_resolved"] = resolved
+    if (
+        division.ayes_count is not None
+        and division.noes_count is not None
+        and division.ayes_count != division.noes_count
+    ):
+        division.result = (
+            DivisionResult.AYES
+            if division.ayes_count > division.noes_count
+            else DivisionResult.NOES
+        )
+        division.extensions["result_derived"] = "true"
+    return division
 
 
 def _marker_of(p: etree._Element) -> str | None:
@@ -185,6 +257,20 @@ def parse_nsw_fragment(
                 subject.name = _clean(topic.findtext("topicinfo/text") or "") or None
                 if subject.name:
                     subject.names = [subject.name]
+                for sub_el in topic.findall("subproceeding"):
+                    sub = Subproceeding(
+                        document_order=ctx.next_order(),
+                        name=_clean(sub_el.findtext("subproceedinginfo/text") or "") or None,
+                    )
+                    sub.divisions = [
+                        _parse_division(div_el, ctx)
+                        for div_el in sub_el.findall("division")
+                    ]
+                    if sub.name or sub.divisions:
+                        subject.subproceedings.append(sub)
+                subject.divisions = [
+                    _parse_division(div_el, ctx) for div_el in topic.findall("division")
+                ]
         meta_talkers = _parse_meta_talkers(data, ctx)
 
     # prose: assign paragraphs to speakers via data-value markers

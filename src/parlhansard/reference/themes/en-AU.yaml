@@ -1,0 +1,99 @@
+# Open seed theme taxonomy — broad debate categories for the en-AU
+# jurisdictions (WA, SA, NSW, AU federal). <=30 per locale by design; the
+# Phase 4 classifier uses names + descriptions as its label space, and the
+# taxonomy version is part of every enrichment dedup key. Descriptions are
+# freshly authored category summaries (no Hansard text). Extend by PR —
+# a test validates ids and uniqueness.
+locale: en-AU
+version: 1
+themes:
+  - id: agriculture-rural
+    name: Agriculture and Rural Affairs
+    description: Farming, livestock, land use, primary production, rural communities.
+  - id: arts-culture
+    name: Arts and Culture
+    description: Visual and performing arts, cultural institutions, heritage protection, creative industries.
+  - id: bills-legislation
+    name: Bills and Legislation
+    description: Procedural debate on bills, amendments, legislative process.
+  - id: business-industry
+    name: Business and Industry
+    description: Industry policy, trade, manufacturing, commerce, regulation of business.
+  - id: children-youth
+    name: Children and Youth
+    description: Child welfare, youth services, family law, child protection.
+  - id: community-services
+    name: Community Services
+    description: Charitable services, community grants, volunteering, non-government organisations.
+  - id: corrections-justice
+    name: Corrections and Justice
+    description: Prisons, parole, sentencing, restorative justice.
+  - id: defence-veterans
+    name: Defence and Veterans
+    description: Defence policy, veteran affairs, military service recognition.
+  - id: disability-accessibility
+    name: Disability and Accessibility
+    description: Disability services, accessibility standards, NDIS or equivalent schemes.
+  - id: economy-finance
+    name: Economy and Finance
+    description: Budget, taxation, fiscal policy, economic forecasts.
+  - id: education-training
+    name: Education and Training
+    description: Schools, universities, vocational training, curriculum, teacher workforce.
+  - id: energy-resources
+    name: Energy and Resources
+    description: Electricity, gas, mining, renewables, resource royalties.
+  - id: environment-climate
+    name: Environment and Climate
+    description: Environmental protection, climate policy, biodiversity, water management.
+  - id: first-nations
+    name: First Nations
+    description: Indigenous affairs, treaty, native title, reconciliation.
+  - id: health-wellbeing
+    name: Health and Wellbeing
+    description: Public health, hospitals, primary care, mental health.
+  - id: housing-homelessness
+    name: Housing and Homelessness
+    description: Public and affordable housing, rental market, homelessness services.
+  - id: immigration-multicultural
+    name: Immigration and Multicultural Affairs
+    description: Migration policy, settlement services, multicultural communities.
+  - id: industrial-relations
+    name: Industrial Relations
+    description: Workplace law, wages, unions, work health and safety.
+  - id: infrastructure-transport
+    name: Infrastructure and Transport
+    description: Roads, rail, ports, airports, public transport, major projects.
+  - id: local-government
+    name: Local Government
+    description: Council services, local planning, intergovernmental relations.
+  - id: petitions
+    name: Petitions
+    description: Citizen petitions tabled in the chamber.
+  - id: police-emergency
+    name: Police and Emergency Services
+    description: Policing, fire, ambulance, emergency management.
+  - id: procedural-matters
+    name: Procedural Matters
+    description: Standing orders, points of order, procedural rulings, leave applications.
+  - id: public-administration
+    name: Public Administration
+    description: Public service, integrity bodies, FOI, government accountability.
+  - id: question-time
+    name: Question Time
+    description: Questions without notice, ministerial responses.
+  - id: science-technology
+    name: Science, Technology and Innovation
+    description: Research funding, technology policy, digital infrastructure.
+  - id: social-policy-welfare
+    name: Social Policy and Welfare
+    description: Income support, social security, welfare reform, poverty.
+  - id: sport-recreation
+    name: Sport and Recreation
+    description: Sport funding, major events, community recreation, gambling regulation.
+  - id: tourism-hospitality
+    name: Tourism and Hospitality
+    description: Tourism industry, visitor economy, hospitality regulation.
+  - id: women-gender-equality
+    name: Women and Gender Equality
+    description: Women's safety, gender equality, family violence prevention.

@@ -1,0 +1,22 @@
+# Stage vocabulary: subproceeding names as published -> canonical bill stage.
+# Matching is case-insensitive exact; unlisted names keep a null stage in gold.
+# Seeded from the observed name distribution (2026-07-04); crowd-source additions.
+jurisdiction: wa
+stages:
+  first_reading:
+    - Introduction and first reading
+    - Receipt and first reading
+  second_reading:
+    - Second reading
+    - Second reading speech
+  committee:
+    - Consideration in detail
+    - Committee of the whole
+  report:
+    - Report
+  third_reading:
+    - Third reading
+  returned:
+    - Returned
+  assent:
+    - Assent

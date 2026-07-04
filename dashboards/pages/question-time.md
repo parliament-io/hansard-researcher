@@ -41,10 +41,27 @@ limit 15
 
 <DataTable data={answerers} title="Who answers — ministers by volume" />
 
+Pick a jurisdiction and year to browse individual question/answer pairs (the
+archive holds too many to list at once):
+
+```sql qt_jurisdictions
+select distinct jurisdiction from hansard.qa_pairs order by 1
+```
+
+<Dropdown data={qt_jurisdictions} name=qt_jurisdiction value=jurisdiction title="Jurisdiction" />
+
+```sql qt_years
+select distinct year(cast(date as date)) as year
+from hansard.qa_pairs
+where jurisdiction = '${inputs.qt_jurisdiction.value}'
+order by 1 desc
+```
+
+<Dropdown data={qt_years} name=qt_year value=year title="Year" />
+
 ```sql qa_detail
 select
     date,
-    jurisdiction,
     house,
     subject_name,
     question_member,
@@ -52,7 +69,9 @@ select
     answer_member,
     answer_words
 from hansard.qa_pairs
+where jurisdiction = '${inputs.qt_jurisdiction.value}'
+  and year(cast(date as date)) = ${inputs.qt_year.value}
 order by date desc, subject_name
 ```
 
-<DataTable data={qa_detail} title="All question/answer pairs" search=true rows=25 />
+<DataTable data={qa_detail} title="Question/answer pairs" search=true rows=25 />

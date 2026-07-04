@@ -165,7 +165,12 @@ def cmd_normalize(args: argparse.Namespace) -> int:
 def cmd_aggregate(args: argparse.Namespace) -> int:
     from parlhansard.aggregate.cubes import build_gold
 
-    counts = build_gold(args.data_dir / "silver", args.data_dir / "gold")
+    counts = build_gold(
+        args.data_dir / "silver",
+        args.data_dir / "gold",
+        reference_dir=args.data_dir / "reference",
+        enriched_dir=args.data_dir / "enriched",
+    )
     print(f"gold cubes -> {args.data_dir / 'gold'}")
     for name, count in counts.items():
         print(f"  {name:<24} {count:>8}")
@@ -180,6 +185,173 @@ def cmd_db(args: argparse.Namespace) -> int:
     print(f"wrote {args.out} ({len(tables)} tables: {', '.join(tables)})")
     if args.include_silver:
         print("NOTE: includes silver full text — local analysis only, do not publish")
+    return 0
+
+
+def cmd_reference(args: argparse.Namespace) -> int:
+    builders = {"sa": "parlhansard.reference.sa", "nsw": "parlhansard.reference.nsw"}
+    module_name = builders.get(args.jurisdiction)
+    if module_name is None:
+        print(
+            f"'reference {args.jurisdiction}' is not implemented yet — "
+            f"see docs/ROADMAP.md (live: {', '.join(builders)})",
+            file=sys.stderr,
+        )
+        return 2
+    import importlib
+
+    build = importlib.import_module(module_name).build
+    try:
+        count = build(args.data_dir, offline=args.offline)
+    except FileNotFoundError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    mode = "rebuilt offline from stored snapshot" if args.offline else "fetched + built"
+    print(f"[{args.jurisdiction}] member register: {count} people ({mode}) -> "
+          f"{args.data_dir / 'reference' / 'members'}")
+    return 0
+
+
+def cmd_enrich_embed(args: argparse.Namespace) -> int:
+    from parlhansard.enrich.embed import embed_texts
+    from parlhansard.enrich.providers import ProviderError, get_embedder, resolve_config
+
+    try:
+        config = resolve_config(args.provider)
+        embedder = get_embedder(config)
+    except ProviderError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    stats = embed_texts(
+        args.data_dir,
+        args.jurisdiction,
+        embedder,
+        provider=config.provider,
+        model=config.embed_model,
+        start=args.start,
+        end=args.end,
+        batch_size=args.batch_size,
+        force=args.force,
+    )
+    print(
+        f"[{args.jurisdiction}] embedded {stats['days']} day(s) "
+        f"({stats['vectors']} vectors, model {config.embed_model}), "
+        f"skipped {stats['skipped']} already-embedded"
+    )
+    return 0
+
+
+def cmd_enrich_themes(args: argparse.Namespace) -> int:
+    from parlhansard.enrich.providers import (
+        OpenAICompatClient,
+        ProviderError,
+        get_embedder,
+        resolve_config,
+    )
+    from parlhansard.enrich.themes import classify_themes
+
+    try:
+        config = resolve_config(args.provider)
+        embedder = completer = None
+        if args.engine == "embedding":
+            embedder = get_embedder(config)
+            model = config.embed_model
+        else:
+            if config.base_url is None:
+                raise ProviderError(
+                    "the llm engine needs a chat-capable endpoint — provider "
+                    "'local' only embeds (use --engine embedding, or ollama/"
+                    "openai/... for llm)"
+                )
+            completer = OpenAICompatClient(config)
+            model = config.chat_model
+            if not model:
+                raise ProviderError(
+                    "no chat model set — set PARLHANSARD_ENRICH_CHAT_MODEL"
+                )
+    except ProviderError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    stats = classify_themes(
+        args.data_dir,
+        args.jurisdiction,
+        engine=args.engine,
+        model=model,
+        provider=config.provider,
+        embedder=embedder,
+        completer=completer,
+        start=args.start,
+        end=args.end,
+        top_k=args.top_k,
+        min_score=args.min_score,
+        force=args.force,
+    )
+    print(
+        f"[{args.jurisdiction}] classified {stats['days']} day(s) "
+        f"({stats['labels']} theme labels, {args.engine}:{model}), "
+        f"skipped {stats['skipped']} already-classified"
+    )
+    return 0
+
+
+def cmd_enrich_index(args: argparse.Namespace) -> int:
+    from parlhansard.enrich.providers import ProviderError, resolve_config
+    from parlhansard.enrich.qdrant import QdrantIndex, collection_name, index_embeddings
+
+    try:
+        config = resolve_config(args.provider)
+        if not config.embed_model:
+            raise ProviderError("no embedding model set — set PARLHANSARD_ENRICH_EMBED_MODEL")
+        index = QdrantIndex(args.qdrant_url)
+        stats = index_embeddings(
+            args.data_dir, args.jurisdiction, index, config.embed_model,
+            batch_size=args.batch_size,
+        )
+    except ProviderError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    print(
+        f"[{args.jurisdiction}] indexed {stats['points']:,} vectors into "
+        f"{collection_name(config.embed_model)!r} at {index.url}"
+        f"{' (collection created)' if stats['created'] else ''}"
+    )
+    return 0
+
+
+def cmd_enrich_search(args: argparse.Namespace) -> int:
+    from parlhansard.enrich.providers import ProviderError, get_embedder, resolve_config
+    from parlhansard.enrich.search import search, search_qdrant
+
+    try:
+        config = resolve_config(args.provider)
+        query_vector = get_embedder(config).embed([args.query])[0]
+    except ProviderError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    if args.backend == "qdrant":
+        hits = search_qdrant(
+            args.data_dir,
+            query_vector,
+            config.embed_model,
+            k=args.k,
+            jurisdiction=args.jurisdiction,
+        )
+    else:
+        hits = search(
+            args.data_dir,
+            query_vector,
+            config.embed_model,
+            k=args.k,
+            jurisdiction=args.jurisdiction,
+        )
+    if not hits:
+        print("no matches — run 'parlhansard enrich embed' first?", file=sys.stderr)
+        return 1
+    for hit in hits:
+        context = " · ".join(filter(None, (hit.subject_name, hit.speaker)))
+        snippet = hit.text if len(hit.text) <= 240 else hit.text[:237] + "..."
+        print(f"{hit.score:.3f}  {hit.jurisdiction} {hit.date} {hit.house}  {context}")
+        print(f"       {snippet}")
     return 0
 
 
@@ -247,8 +419,96 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     p.set_defaults(func=cmd_db)
 
-    p = sub.add_parser("enrich", help="themes/embeddings/entity links (optional, roadmap)")
-    p.set_defaults(func=_not_yet("enrich"))
+    p = sub.add_parser(
+        "reference",
+        help="member registers (Tier 2): fetch + normalize, snapshots stored offline",
+    )
+    p.add_argument("jurisdiction", choices=[j.value for j in Jurisdiction])
+    p.add_argument(
+        "--offline",
+        action="store_true",
+        help="rebuild from the stored raw snapshot (no network)",
+    )
+    p.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
+    p.set_defaults(func=cmd_reference)
+
+    p = sub.add_parser(
+        "enrich",
+        help="optional Tier 3: embeddings + semantic search (BYO provider, never required)",
+    )
+    esub = p.add_subparsers(dest="enrich_command", required=True)
+
+    def _provider_arg(sp: argparse.ArgumentParser) -> None:
+        from parlhansard.enrich.providers import PRESETS
+
+        sp.add_argument(
+            "--provider",
+            choices=[*PRESETS, "custom"],
+            help="preset (local server or BYO-key endpoint); "
+            "PARLHANSARD_ENRICH_* env vars override/extend",
+        )
+
+    pe = esub.add_parser("embed", help="silver paragraphs -> embeddings (data/enriched)")
+    pe.add_argument("jurisdiction", choices=[j.value for j in Jurisdiction])
+    pe.add_argument("--start", type=_parse_date, metavar="YYYY-MM-DD")
+    pe.add_argument("--end", type=_parse_date, metavar="YYYY-MM-DD")
+    _provider_arg(pe)
+    pe.add_argument("--batch-size", type=int, default=96)
+    pe.add_argument("--force", action="store_true", help="re-embed already-embedded days")
+    pe.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
+    pe.set_defaults(func=cmd_enrich_embed)
+
+    pi = esub.add_parser(
+        "index", help="load computed embeddings into Qdrant for ANN search"
+    )
+    pi.add_argument("jurisdiction", choices=[j.value for j in Jurisdiction])
+    _provider_arg(pi)
+    pi.add_argument(
+        "--qdrant-url",
+        help="Qdrant base URL (default: PARLHANSARD_QDRANT_URL or http://localhost:6333)",
+    )
+    pi.add_argument("--batch-size", type=int, default=512)
+    pi.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
+    pi.set_defaults(func=cmd_enrich_index)
+
+    ps = esub.add_parser("search", help="semantic search over embedded paragraphs")
+    ps.add_argument("query")
+    ps.add_argument("--jurisdiction", choices=[j.value for j in Jurisdiction])
+    ps.add_argument("--k", type=int, default=10, help="number of results")
+    ps.add_argument(
+        "--backend",
+        choices=["duckdb", "qdrant"],
+        default="duckdb",
+        help="duckdb: exact scan of the parquet (no server); "
+        "qdrant: ANN via 'enrich index' (fast at archive scale)",
+    )
+    _provider_arg(ps)
+    ps.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
+    ps.set_defaults(func=cmd_enrich_search)
+
+    pt = esub.add_parser(
+        "themes",
+        help="classify subjects against the seed taxonomy (embedding or llm engine)",
+    )
+    pt.add_argument("jurisdiction", choices=[j.value for j in Jurisdiction])
+    pt.add_argument(
+        "--engine",
+        choices=["embedding", "llm"],
+        default="embedding",
+        help="embedding: cosine vs theme descriptions (cheap, any provider); "
+        "llm: chat-model pick (higher quality, needs a chat endpoint)",
+    )
+    pt.add_argument("--start", type=_parse_date, metavar="YYYY-MM-DD")
+    pt.add_argument("--end", type=_parse_date, metavar="YYYY-MM-DD")
+    _provider_arg(pt)
+    pt.add_argument("--top-k", type=int, default=3, help="max themes per subject")
+    pt.add_argument(
+        "--min-score", type=float, default=0.25,
+        help="minimum cosine similarity (embedding engine)",
+    )
+    pt.add_argument("--force", action="store_true", help="re-classify already-done days")
+    pt.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
+    pt.set_defaults(func=cmd_enrich_themes)
 
     return parser
 

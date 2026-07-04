@@ -34,3 +34,52 @@ services:
 
   harvest:
     <<: *base
+
+  # Optional local AI services for Tier 3 (--profile enrich): Ollama serves
+  # models, Qdrant serves vector search. Both publish on localhost only, so
+  # the host pipeline (`uv run parlhansard ...`) can use them directly:
+  #
+  #   docker compose --profile enrich up -d
+  #   docker compose exec ollama ollama pull nomic-embed-text
+  #   uv run parlhansard enrich embed wa --provider ollama
+  #   uv run parlhansard enrich index wa --provider ollama
+  #   uv run parlhansard enrich search "housing" --provider ollama --backend qdrant
+  #
+  # Fully sandboxed alternative: the `enrich` service reaches both over the
+  # internal-only network and has no route to the internet:
+  #
+  #   docker compose --profile enrich run --rm enrich enrich embed wa
+  ollama:
+    image: ollama/ollama
+    profiles: [enrich, ollama]
+    networks: [default, enrich] # default so `ollama pull` can fetch models
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+
+  qdrant:
+    image: qdrant/qdrant
+    profiles: [enrich, qdrant]
+    networks: [default, enrich] # default is required to publish the port
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - qdrant-storage:/qdrant/storage
+
+  enrich:
+    <<: *base
+    profiles: [enrich, ollama]
+    networks: [enrich] # internal-only: no route out
+    environment:
+      PARLHANSARD_ENRICH_PROVIDER: ollama
+      PARLHANSARD_ENRICH_BASE_URL: http://ollama:11434/v1
+      PARLHANSARD_QDRANT_URL: http://qdrant:6333
+
+networks:
+  enrich:
+    internal: true
+
+volumes:
+  ollama-models:
+  qdrant-storage:

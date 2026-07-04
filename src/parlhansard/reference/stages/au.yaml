@@ -1,0 +1,27 @@
+# Stage vocabulary: subproceeding names as published -> canonical bill stage.
+# Matching is case-insensitive exact; unlisted names keep a null stage in gold.
+# Seeded from the observed name distribution (2026-07-04); crowd-source additions.
+jurisdiction: au
+stages:
+  first_reading:
+    - First Reading
+  second_reading:
+    - Second Reading
+  referral:
+    - Reference to Federation Chamber
+  committee:
+    - In Committee
+    - Consideration in Detail
+    - Consideration
+  report:
+    - Report
+    - Report from Federation Chamber
+  third_reading:
+    - Third Reading
+  returned:
+    - Returned from Senate
+    - Returned from the House of Representatives
+  messages:
+    - Consideration of Senate Message
+  assent:
+    - Assent

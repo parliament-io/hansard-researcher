@@ -1,0 +1,26 @@
+# Stage vocabulary: subproceeding names as published -> canonical bill stage.
+# Matching is case-insensitive exact; unlisted names keep a null stage in gold.
+# Seeded from the observed name distribution (2026-07-04); crowd-source additions.
+jurisdiction: sa
+stages:
+  introduction:
+    - Introduction
+  first_reading:
+    - First Reading
+    - Introduction and First Reading
+  second_reading:
+    - Second Reading
+  referral:
+    - Referred to Select Committee
+  committee:
+    - Committee Stage
+  recommittal:
+    - Recommittal
+  third_reading:
+    - Third Reading
+  conference:
+    - Conference
+  final_stages:
+    - Final Stages
+  assent:
+    - Assent

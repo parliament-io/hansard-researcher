@@ -1,8 +1,7 @@
-"""Gold cubes — Tier 1 structural analytics over the silver tables.
+"""Gold cubes — structural analytics over silver (+ optional theme cubes).
 
 Ports the pure aggregation math of the C# ``HansardAnalyticsAggregator`` and
-``ContributionProjector`` (theme/enrichment cubes arrive with the optional
-enrichment stage — see docs/ROADMAP.md):
+``ContributionProjector``:
 
 - ``member_activity``          all-time per member: turns by kind, words,
                                subjects, sitting days, division votes
@@ -15,7 +14,24 @@ enrichment stage — see docs/ROADMAP.md):
                                the extract index for deep-linking to the API
 - ``division_summary``         one row per division with subject context
 - ``division_votes_detail``    one row per member vote with full context
+- ``bill_journey``             bill x house-day: stages (raw + canonical via
+                               the curated stage vocabulary), volume, divisions
+- ``bills``                    one row per bill: houses, span, furthest stage
 - ``sitting_days``             per sitting: duration, volume, rhythm
+
+Theme cubes (the C# aggregator's enrichment set) build from the optional
+``data/enriched/themes`` assignments — empty until ``enrich themes`` runs;
+subject-grain here (the C# paragraph grain arrives with the paragraph tier).
+Every theme cube carries (engine, model) so runs from different providers
+never mix:
+
+- ``theme_by_week``            theme x ISO week x house: occurrences + score
+- ``theme_cooccurrence``       theme pairs debated in the same subject
+- ``member_theme_rank``        member x theme: turns/words + rank in theme
+- ``bill_theme_link``          bill x theme occurrences
+- ``member_vote_by_theme``     division votes joined to subject themes
+- ``theme_candidates``         curator-workflow port: unclassified or
+                               low-confidence subjects (taxonomy gaps)
 
 Everything here is plain SQL over Parquet — reproducible by anyone with
 DuckDB. Gold is tiny (MBs), so each run is a full recompute: simple and
@@ -28,11 +44,19 @@ from __future__ import annotations
 from pathlib import Path
 
 import duckdb
+import pyarrow as pa
 
 from parlhansard.normalize.silver import SCHEMAS, TABLES
+from parlhansard.reference.register import SCHEMA as REGISTER_SCHEMA
+from parlhansard.reference.stages import load_stage_vocab
 
 # NOTE on text columns: gold deliberately selects names/labels and *numbers*,
 # never clean_text/raw_text. Keep it that way (licensing stance, LICENSES-DATA.md).
+
+# The member register (data/reference/members, optional) joins on
+# (jurisdiction, member_source_id) and fills gaps the source XML leaves:
+# blank names on NSW division votes, party for NSW/SA (their talkers carry
+# none). Source values always win — the register only backfills nulls.
 
 GOLD_QUERIES: dict[str, str] = {
     "member_activity": """
@@ -77,13 +101,18 @@ GOLD_QUERIES: dict[str, str] = {
         select
             coalesce(s.jurisdiction, v.jurisdiction)           as jurisdiction,
             coalesce(s.member_source_id, v.member_source_id)   as member_source_id,
-            s.* exclude (jurisdiction, member_source_id),
+            coalesce(s.member_name, m.display_name)            as member_name,
+            coalesce(s.party, m.party_name)                    as party,
+            s.* exclude (jurisdiction, member_source_id, member_name, party),
             coalesce(v.division_votes, 0)                      as division_votes,
             coalesce(v.votes_ayes, 0)                          as votes_ayes,
             coalesce(v.votes_noes, 0)                          as votes_noes,
             coalesce(v.teller_count, 0)                        as teller_count
         from speaking s
         full join voting v using (jurisdiction, member_source_id)
+        left join members m
+          on coalesce(s.jurisdiction, v.jurisdiction) = m.jurisdiction
+         and coalesce(s.member_source_id, v.member_source_id) = m.source_member_id
     """,
     "member_activity_by_week": """
         select
@@ -265,15 +294,240 @@ GOLD_QUERIES: dict[str, str] = {
             s.name                   as subject_name,
             d.result                 as division_result,
             v.member_source_id,
-            v.member_name,
+            coalesce(v.member_name, m.display_name) as member_name,
             v.vote,
             v.vote = upper(coalesce(d.result, '')) as voted_with_result,
             v.teller,
             v.proxy,
-            v.party
+            coalesce(v.party, m.party_name)         as party
         from division_votes v
         left join divisions d using (division_id)
         left join subjects s on d.subject_id = s.subject_id
+        left join members m
+          on v.jurisdiction = m.jurisdiction
+         and v.member_source_id = m.source_member_id
+    """,
+    # bill identity is the normalized bill NAME + jurisdiction: WA/SA carry
+    # explicit bill elements (bill_refs) whose uids do NOT track across
+    # houses, while NSW/AU publish the bill name as the subject name — the
+    # name string is what parliaments themselves keep stable between chambers
+    "bill_journey": """
+        with bill_subjects as (
+            select
+                s.jurisdiction, s.date, s.house, s.subject_id,
+                coalesce(b.name, s.name) as bill_name
+            from subjects s
+            left join (
+                select subject_id, any_value(name) as name
+                from bill_refs where name is not null group by 1
+            ) b using (subject_id)
+            where b.name is not null
+               or regexp_matches(coalesce(s.name, ''), '\\bBill\\b')
+        ),
+        keyed as (
+            select *,
+                lower(trim(regexp_replace(bill_name, '\\s+', ' ', 'g'))) as bill_key
+            from bill_subjects
+        ),
+        stage_stats as (
+            select
+                sp.subject_id,
+                string_agg(sp.name, ' · ' order by sp.document_order) as stage_labels,
+                arg_max(v.stage, v.stage_order)                       as furthest_stage,
+                max(v.stage_order)                                    as furthest_stage_order
+            from subproceedings sp
+            left join stage_vocab v
+              on v.jurisdiction = sp.jurisdiction and lower(sp.name) = v.name_lower
+            group by 1
+        ),
+        talker_stats as (
+            select subject_id,
+                   count(*)                          as talker_turns,
+                   count(distinct member_source_id)  as distinct_speakers,
+                   coalesce(sum(word_count), 0)      as words
+            from talkers where subject_id is not null group by 1
+        ),
+        division_stats as (
+            select subject_id,
+                   count(*)                                   as divisions,
+                   string_agg(result, ', ' order by document_order) as division_results
+            from divisions where subject_id is not null group by 1
+        )
+        select
+            k.jurisdiction,
+            k.bill_key,
+            arg_max(k.bill_name, k.date)              as bill_name,
+            k.date,
+            k.house,
+            string_agg(ss.stage_labels, ' · ')        as stage_labels,
+            arg_max(ss.furthest_stage, ss.furthest_stage_order) as furthest_stage,
+            max(ss.furthest_stage_order)              as furthest_stage_order,
+            coalesce(sum(t.talker_turns), 0)          as talker_turns,
+            coalesce(sum(t.distinct_speakers), 0)     as distinct_speakers,
+            coalesce(sum(t.words), 0)                 as words,
+            coalesce(sum(d.divisions), 0)             as divisions,
+            string_agg(d.division_results, ', ')      as division_results
+        from keyed k
+        left join stage_stats ss using (subject_id)
+        left join talker_stats t using (subject_id)
+        left join division_stats d using (subject_id)
+        group by k.jurisdiction, k.bill_key, k.date, k.house
+    """,
+    # one row per bill: the Explorer's bills-list shape (houses, span,
+    # furthest stage reached, volume) — reads the bill_journey cube above
+    "bills": """
+        select
+            jurisdiction,
+            bill_key,
+            arg_max(bill_name, date)                  as bill_name,
+            string_agg(distinct house, ', ')          as house_names,
+            count(distinct house)                     as houses,
+            min(date)                                 as first_sitting,
+            max(date)                                 as last_sitting,
+            count(*)                                  as house_days,
+            arg_max(furthest_stage, furthest_stage_order) as latest_stage,
+            max(furthest_stage_order)                 as latest_stage_order,
+            sum(talker_turns)                         as talker_turns,
+            sum(words)                                as words,
+            sum(divisions)                            as divisions
+        from bill_journey
+        group by 1, 2
+    """,
+    "theme_by_week": """
+        select
+            jurisdiction,
+            house,
+            engine,
+            model,
+            datepart('isoyear', cast(date as date))  as iso_year,
+            datepart('week', cast(date as date))     as iso_week,
+            min(date)                                as week_start_sitting,
+            theme_id,
+            any_value(theme_name)                    as theme_name,
+            count(*)                                 as subject_occurrences,
+            count(*) filter (rank = 1)               as top_rank_occurrences,
+            round(avg(score), 4)                     as avg_score
+        from subject_themes
+        group by 1, 2, 3, 4, 5, 6, 8
+    """,
+    "theme_cooccurrence": """
+        select
+            a.jurisdiction,
+            a.engine,
+            a.model,
+            a.theme_id              as theme_id_a,
+            any_value(a.theme_name) as theme_name_a,
+            b.theme_id              as theme_id_b,
+            any_value(b.theme_name) as theme_name_b,
+            count(*)                as cooccurrences
+        from subject_themes a
+        join subject_themes b
+          on a.subject_id = b.subject_id
+         and a.engine = b.engine and a.model = b.model
+         and a.theme_id < b.theme_id
+        group by 1, 2, 3, 4, 6
+    """,
+    "member_theme_rank": """
+        with themed_turns as (
+            select
+                st.engine, st.model, st.theme_id, st.theme_name,
+                t.jurisdiction, t.member_source_id, t.name, t.word_count, t.date
+            from talkers t
+            join subject_themes st on t.subject_id = st.subject_id
+            where t.member_source_id is not null
+        )
+        select
+            jurisdiction,
+            engine,
+            model,
+            theme_id,
+            any_value(theme_name)         as theme_name,
+            member_source_id,
+            arg_max(name, date)           as member_name,
+            count(*)                      as turns,
+            coalesce(sum(word_count), 0)  as words,
+            dense_rank() over (
+                partition by jurisdiction, engine, model, theme_id
+                order by count(*) desc
+            )                             as theme_rank
+        from themed_turns
+        group by jurisdiction, engine, model, theme_id, member_source_id
+    """,
+    "bill_theme_link": """
+        with bill_subjects as (
+            select
+                s.subject_id, s.jurisdiction, s.date,
+                coalesce(b.name, s.name) as bill_name,
+                lower(trim(regexp_replace(coalesce(b.name, s.name), '\\s+', ' ', 'g')))
+                    as bill_key
+            from subjects s
+            left join (
+                select subject_id, any_value(name) as name
+                from bill_refs where name is not null group by 1
+            ) b using (subject_id)
+            where b.name is not null
+               or regexp_matches(coalesce(s.name, ''), '\\bBill\\b')
+        )
+        select
+            bs.jurisdiction,
+            st.engine,
+            st.model,
+            bs.bill_key,
+            arg_max(bs.bill_name, bs.date) as bill_name,
+            st.theme_id,
+            any_value(st.theme_name)       as theme_name,
+            count(*)                       as subject_occurrences
+        from bill_subjects bs
+        join subject_themes st using (subject_id)
+        group by 1, 2, 3, 4, 6
+    """,
+    "member_vote_by_theme": """
+        select
+            v.jurisdiction,
+            st.engine,
+            st.model,
+            st.theme_id,
+            any_value(st.theme_name) as theme_name,
+            v.member_source_id,
+            coalesce(arg_max(v.member_name, v.date), any_value(m.display_name))
+                as member_name,
+            v.vote,
+            count(*)                 as votes
+        from division_votes v
+        join divisions d using (division_id)
+        join subject_themes st on d.subject_id = st.subject_id
+        left join members m
+          on v.jurisdiction = m.jurisdiction
+         and v.member_source_id = m.source_member_id
+        where v.member_source_id is not null
+        group by v.jurisdiction, st.engine, st.model, st.theme_id,
+                 v.member_source_id, v.vote
+    """,
+    # curator-workflow port: subjects the classifier could not place (or
+    # placed weakly) on house-days that WERE classified — the queue for
+    # expanding the taxonomy. Empty until 'enrich themes' runs; days not yet
+    # classified are not gaps.
+    "theme_candidates": """
+        with best as (
+            select subject_id, max(score) as best_score
+            from subject_themes where rank = 1 group by 1
+        ),
+        themed_days as (
+            select distinct jurisdiction, date, house from subject_themes
+        )
+        select
+            s.jurisdiction,
+            s.date,
+            s.house,
+            s.subject_id,
+            s.name as subject_name,
+            b.best_score,
+            case when b.subject_id is null then 'unclassified'
+                 else 'low_confidence' end as reason
+        from subjects s
+        join themed_days using (jurisdiction, date, house)
+        left join best b using (subject_id)
+        where b.subject_id is null or b.best_score < 0.30
     """,
     "sitting_days": """
         with subject_stats as (
@@ -335,18 +589,74 @@ def _attach_silver(con: duckdb.DuckDBPyConnection, silver_dir: Path) -> None:
             con.execute(f"create or replace view {table} as select * from _empty_{table}")
 
 
-def build_gold(silver_dir: Path, gold_dir: Path) -> dict[str, int]:
-    """Recompute all gold cubes from silver; returns rows per cube."""
+def _attach_reference(
+    con: duckdb.DuckDBPyConnection,
+    reference_dir: Path | None,
+    enriched_dir: Path | None = None,
+) -> None:
+    """Expose the member register, theme assignments and stage vocabulary as
+    views (empty-but-typed when absent)."""
+    members_dir = Path(reference_dir) / "members" if reference_dir else None
+    if members_dir and members_dir.is_dir() and any(members_dir.rglob("*.parquet")):
+        con.execute(
+            f"create or replace view members as select * from read_parquet("
+            f"'{members_dir.as_posix()}/**/*.parquet', hive_partitioning=1)"
+        )
+    else:
+        con.register("_empty_members", REGISTER_SCHEMA.empty_table())
+        con.execute("create or replace view members as select * from _empty_members")
+    # optional theme assignments from 'enrich themes' (empty-but-typed when absent)
+    themes_dir = Path(enriched_dir) / "themes" if enriched_dir else None
+    if themes_dir and themes_dir.is_dir() and any(themes_dir.rglob("*.parquet")):
+        con.execute(
+            f"create or replace view subject_themes as select * from read_parquet("
+            f"'{themes_dir.as_posix()}/**/*.parquet', hive_partitioning=1)"
+        )
+    else:
+        from parlhansard.enrich.themes import SCHEMA as SUBJECT_THEMES_SCHEMA
+
+        con.register("_empty_subject_themes", SUBJECT_THEMES_SCHEMA.empty_table())
+        con.execute(
+            "create or replace view subject_themes as select * from _empty_subject_themes"
+        )
+    # curated stage vocabulary ships with the package (reference/stages/*.yaml)
+    con.register(
+        "_stage_vocab",
+        pa.Table.from_pylist(
+            load_stage_vocab(),
+            schema=pa.schema(
+                [
+                    ("jurisdiction", pa.string()),
+                    ("name_lower", pa.string()),
+                    ("stage", pa.string()),
+                    ("stage_order", pa.int32()),
+                ]
+            ),
+        ),
+    )
+    con.execute("create or replace view stage_vocab as select * from _stage_vocab")
+
+
+def build_gold(
+    silver_dir: Path,
+    gold_dir: Path,
+    reference_dir: Path | None = None,
+    enriched_dir: Path | None = None,
+) -> dict[str, int]:
+    """Recompute all gold cubes from silver (+ optional register/themes)."""
     gold_dir = Path(gold_dir)
     gold_dir.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect()
     _attach_silver(con, silver_dir)
+    _attach_reference(con, reference_dir, enriched_dir)
 
     counts: dict[str, int] = {}
     for name, query in GOLD_QUERIES.items():
         out = (gold_dir / f"{name}.parquet").as_posix()
         con.execute(f"copy ({query}) to '{out}' (format parquet)")
         (counts[name],) = con.execute(f"select count(*) from '{out}'").fetchone()
+        # written cubes are queryable by later cubes (bills reads bill_journey)
+        con.execute(f"create or replace view {name} as select * from '{out}'")
     return counts
 
 
