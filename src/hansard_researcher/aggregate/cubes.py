@@ -32,6 +32,8 @@ never mix:
 - ``theme_by_week``            theme x ISO week x house: occurrences + score
 - ``theme_cooccurrence``       theme pairs debated in the same subject
 - ``member_theme_rank``        member x theme: turns/words + rank in theme
+                               (substantive kinds only — speech/question/
+                               answer; interjections and untyped excluded)
 - ``bill_theme_link``          bill x theme occurrences
 - ``member_vote_by_theme``     division votes joined to subject themes
 - ``theme_candidates``         curator-workflow port: unclassified or
@@ -446,6 +448,13 @@ GOLD_QUERIES: dict[str, str] = {
             from talkers t
             join subject_themes st on t.subject_id = st.subject_id
             where t.member_source_id is not null
+              -- substantive contributions only: interjections and untyped
+              -- turns are excluded, so a member "owns" a theme by speeches/
+              -- questions/answers, not heckling volume. WA/SA sources type
+              -- only the lead turn of each exchange (verified: silver kind
+              -- matches raw exactly); follower turns stay untyped until the
+              -- kind-inference backfill recovers them
+              and t.kind in ('speech', 'question', 'answer')
         )
         select
             jurisdiction,

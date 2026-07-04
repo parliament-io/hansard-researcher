@@ -237,6 +237,9 @@ order by jurisdiction, subject_occurrences desc
 <DataTable data={theme_bills_compare} title="Bills linked to this theme, by jurisdiction" groupBy=jurisdiction search=true rows=30 />
 
 **Who owns the theme in each chamber** — top speakers per jurisdiction.
+Turns count substantive contributions only (marked up as speech, question or
+answer in the official record) — interjections and unmarked turns don't
+build ownership.
 
 ```sql theme_speakers_compare
 select

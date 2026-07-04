@@ -78,7 +78,7 @@ order by theme_rank, words desc
 limit 25
 ```
 
-<DataTable data={theme_members} title="Who speaks on this theme" />
+<DataTable data={theme_members} title="Who speaks on this theme (substantive turns: speech/question/answer)" />
 
 ```sql theme_votes
 select
