@@ -44,6 +44,30 @@ order by words desc
     <Column id=division_votes />
 </DataTable>
 
+Speech/question/answer columns only count turns the source (or the
+same-member inference pass) typed — read them against this coverage, not
+against `turns`: WA and SA mark up only the lead turn of each exchange, so
+their untyped remainder is a markup gap, not silence.
+
+```sql kind_coverage
+select
+    jurisdiction,
+    sum(turns) as turns,
+    sum(speeches + questions + answers + interjections) as typed_turns,
+    round(100.0 * sum(speeches + questions + answers + interjections)
+        / sum(turns), 1) as typed_pct
+from hansard.member_activity
+group by 1
+order by 1
+```
+
+<DataTable data={kind_coverage} title="Contribution-kind coverage by jurisdiction">
+    <Column id=jurisdiction />
+    <Column id=turns fmt=num0 />
+    <Column id=typed_turns fmt=num0 />
+    <Column id=typed_pct title="Typed %" fmt='0.0"%"' contentType=colorscale scaleColor=green />
+</DataTable>
+
 ```sql top_talkers
 select member_name, words
 from hansard.member_activity

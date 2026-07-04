@@ -115,7 +115,7 @@ def test_system_timestamp_never_defines_the_zone():
     day = _day(
         [Talker(document_order=1, start_time=dt.datetime(2023, 11, 30, 11, 1))],
         jurisdiction=Jurisdiction.SA,
-        date_modified=dt.datetime(2023, 12, 15, 0, 37, tzinfo=dt.timezone.utc),
+        date_modified=dt.datetime(2023, 12, 15, 0, 37, tzinfo=dt.UTC),
     )
     apply_running_clock(day, "sa")
     assert day.extensions["clock_tz"] == "zone:Australia/Adelaide"

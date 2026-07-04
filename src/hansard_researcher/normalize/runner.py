@@ -39,10 +39,13 @@ def normalize_day(
     ]
     adapter = get_adapter(event.jurisdiction)
     fragments = list(adapter.normalize(docs))
-    # day-level pass, after stitching: anchors wall-clock turn times to the
-    # sitting's zone and rolls past-midnight readings onto the next date
+    # day-level passes, after stitching: anchor wall-clock turn times to the
+    # sitting's zone (rolling past-midnight readings onto the next date) and
+    # type untyped follow-on turns from the same member's lead turn
     from hansard_researcher.normalize.clock import apply_running_clock
+    from hansard_researcher.normalize.kinds import apply_kind_inference
 
     for fragment in fragments:
         apply_running_clock(fragment, jurisdiction)
+        apply_kind_inference(fragment)
     return write_silver(fragments, Path(out_dir))
