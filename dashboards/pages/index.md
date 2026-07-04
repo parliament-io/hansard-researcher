@@ -48,4 +48,6 @@ order by 2
 - [Divisions](/divisions) — recorded votes with per-member breakdowns
 - [Bills](/bills) — each bill's journey through the houses, stage by stage
 - [Themes](/themes) — what parliament debates (BYO-provider classification)
+- [Themes Across Parliaments](/themes-compare) — common ground, local
+  obsessions, and how themes travel between jurisdictions
 - [Sitting Days](/sittings) — chamber rhythm and volume

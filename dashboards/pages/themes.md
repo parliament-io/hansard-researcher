@@ -7,12 +7,12 @@ What parliament debates, classified against the open
 (≤30 broad categories per locale). Classification is **bring-your-own
 provider** (`hansard-researcher enrich themes`) — this page is empty until it has
 been run; each chart is scoped to one engine+model so different providers
-never mix.
+never mix. For cross-jurisdiction comparison — common ground, local
+obsessions, theme travel — see [Themes Across Parliaments](/themes-compare).
 
 ```sql models
 select distinct engine || ':' || model as model_key, engine, model
 from hansard.theme_by_week
-where engine is not null -- drops the empty-source sentinel row
 order by 1
 ```
 
@@ -110,7 +110,6 @@ select jurisdiction, count(*) as subjects,
        count(*) filter (reason = 'unclassified') as unclassified,
        count(*) filter (reason = 'low_confidence') as low_confidence
 from hansard.theme_candidates
-where jurisdiction is not null -- drops the empty-source sentinel row
 group by 1 order by 1
 ```
 
