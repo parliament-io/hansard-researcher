@@ -1,0 +1,1344 @@
+{
+  "$defs": {
+    "Attendee": {
+      "additionalProperties": false,
+      "properties": {
+        "document_order": {
+          "default": 0,
+          "title": "Document Order",
+          "type": "integer"
+        },
+        "extensions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Extensions",
+          "type": "object"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kind"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "reference_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference Id"
+        }
+      },
+      "title": "Attendee",
+      "type": "object"
+    },
+    "BillRef": {
+      "additionalProperties": false,
+      "description": "A reference to a bill attached to a subject.",
+      "properties": {
+        "document_order": {
+          "default": 0,
+          "title": "Document Order",
+          "type": "integer"
+        },
+        "extensions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Extensions",
+          "type": "object"
+        },
+        "uid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uid"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        },
+        "reference_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference Id"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        }
+      },
+      "title": "BillRef",
+      "type": "object"
+    },
+    "Clause": {
+      "additionalProperties": false,
+      "description": "A clause/section/amendment (e.g. committee stage of a bill).",
+      "properties": {
+        "document_order": {
+          "default": 0,
+          "title": "Document Order",
+          "type": "integer"
+        },
+        "extensions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Extensions",
+          "type": "object"
+        },
+        "uid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uid"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "talkers": {
+          "items": {
+            "$ref": "#/$defs/Talker"
+          },
+          "title": "Talkers",
+          "type": "array"
+        },
+        "texts": {
+          "items": {
+            "$ref": "#/$defs/TextPara"
+          },
+          "title": "Texts",
+          "type": "array"
+        },
+        "divisions": {
+          "items": {
+            "$ref": "#/$defs/Division"
+          },
+          "title": "Divisions",
+          "type": "array"
+        }
+      },
+      "title": "Clause",
+      "type": "object"
+    },
+    "Division": {
+      "additionalProperties": false,
+      "description": "A formal recorded vote, including per-member vote data.",
+      "properties": {
+        "document_order": {
+          "default": 0,
+          "title": "Document Order",
+          "type": "integer"
+        },
+        "extensions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Extensions",
+          "type": "object"
+        },
+        "uid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uid"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        },
+        "result": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DivisionResult"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "ayes_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ayes Count"
+        },
+        "noes_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Noes Count"
+        },
+        "pairs_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pairs Count"
+        },
+        "abstentions_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Abstentions Count"
+        },
+        "texts": {
+          "items": {
+            "$ref": "#/$defs/TextPara"
+          },
+          "title": "Texts",
+          "type": "array"
+        },
+        "talkers": {
+          "items": {
+            "$ref": "#/$defs/Talker"
+          },
+          "title": "Talkers",
+          "type": "array"
+        },
+        "votes": {
+          "items": {
+            "$ref": "#/$defs/DivisionVote"
+          },
+          "title": "Votes",
+          "type": "array"
+        }
+      },
+      "title": "Division",
+      "type": "object"
+    },
+    "DivisionResult": {
+      "enum": [
+        "ayes",
+        "noes"
+      ],
+      "title": "DivisionResult",
+      "type": "string"
+    },
+    "DivisionVote": {
+      "additionalProperties": false,
+      "description": "A single member's recorded vote in a division.",
+      "properties": {
+        "document_order": {
+          "default": 0,
+          "title": "Document Order",
+          "type": "integer"
+        },
+        "extensions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Extensions",
+          "type": "object"
+        },
+        "member_source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Member Source Id"
+        },
+        "member_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Member Name"
+        },
+        "vote": {
+          "$ref": "#/$defs/VoteValue"
+        },
+        "teller": {
+          "default": false,
+          "title": "Teller",
+          "type": "boolean"
+        },
+        "proxy": {
+          "default": false,
+          "title": "Proxy",
+          "type": "boolean"
+        },
+        "proxy_source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Proxy Source Id"
+        },
+        "proxy_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Proxy Name"
+        },
+        "party": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Party"
+        }
+      },
+      "required": [
+        "vote"
+      ],
+      "title": "DivisionVote",
+      "type": "object"
+    },
+    "Jurisdiction": {
+      "enum": [
+        "wa",
+        "sa",
+        "nsw",
+        "au",
+        "nz",
+        "scot"
+      ],
+      "title": "Jurisdiction",
+      "type": "string"
+    },
+    "MeetingTimeMark": {
+      "additionalProperties": false,
+      "properties": {
+        "document_order": {
+          "default": 0,
+          "title": "Document Order",
+          "type": "integer"
+        },
+        "extensions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Extensions",
+          "type": "object"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kind"
+        },
+        "time": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Time"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        }
+      },
+      "title": "MeetingTimeMark",
+      "type": "object"
+    },
+    "Proceeding": {
+      "additionalProperties": false,
+      "description": "A parliamentary proceeding — a normalized order-of-business item.",
+      "properties": {
+        "document_order": {
+          "default": 0,
+          "title": "Document Order",
+          "type": "integer"
+        },
+        "extensions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Extensions",
+          "type": "object"
+        },
+        "uid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uid"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "continued": {
+          "default": false,
+          "title": "Continued",
+          "type": "boolean"
+        },
+        "subjects": {
+          "items": {
+            "$ref": "#/$defs/Subject"
+          },
+          "title": "Subjects",
+          "type": "array"
+        },
+        "talkers": {
+          "items": {
+            "$ref": "#/$defs/Talker"
+          },
+          "title": "Talkers",
+          "type": "array"
+        },
+        "texts": {
+          "items": {
+            "$ref": "#/$defs/TextPara"
+          },
+          "title": "Texts",
+          "type": "array"
+        }
+      },
+      "title": "Proceeding",
+      "type": "object"
+    },
+    "ReviewStage": {
+      "enum": [
+        "published",
+        "uncorrected"
+      ],
+      "title": "ReviewStage",
+      "type": "string"
+    },
+    "Subject": {
+      "additionalProperties": false,
+      "description": "One subject of debate within a proceeding — the primary debate unit.",
+      "properties": {
+        "document_order": {
+          "default": 0,
+          "title": "Document Order",
+          "type": "integer"
+        },
+        "extensions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Extensions",
+          "type": "object"
+        },
+        "uid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uid"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "names": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Names",
+          "type": "array"
+        },
+        "bill_refs": {
+          "items": {
+            "$ref": "#/$defs/BillRef"
+          },
+          "title": "Bill Refs",
+          "type": "array"
+        },
+        "committee_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Committee Name"
+        },
+        "talkers": {
+          "items": {
+            "$ref": "#/$defs/Talker"
+          },
+          "title": "Talkers",
+          "type": "array"
+        },
+        "texts": {
+          "items": {
+            "$ref": "#/$defs/TextPara"
+          },
+          "title": "Texts",
+          "type": "array"
+        },
+        "divisions": {
+          "items": {
+            "$ref": "#/$defs/Division"
+          },
+          "title": "Divisions",
+          "type": "array"
+        },
+        "subproceedings": {
+          "items": {
+            "$ref": "#/$defs/Subproceeding"
+          },
+          "title": "Subproceedings",
+          "type": "array"
+        },
+        "clauses": {
+          "items": {
+            "$ref": "#/$defs/Clause"
+          },
+          "title": "Clauses",
+          "type": "array"
+        }
+      },
+      "title": "Subject",
+      "type": "object"
+    },
+    "Subproceeding": {
+      "additionalProperties": false,
+      "description": "A sub-phase of a subject (e.g. a bill reading stage).",
+      "properties": {
+        "document_order": {
+          "default": 0,
+          "title": "Document Order",
+          "type": "integer"
+        },
+        "extensions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Extensions",
+          "type": "object"
+        },
+        "uid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uid"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "talkers": {
+          "items": {
+            "$ref": "#/$defs/Talker"
+          },
+          "title": "Talkers",
+          "type": "array"
+        },
+        "texts": {
+          "items": {
+            "$ref": "#/$defs/TextPara"
+          },
+          "title": "Texts",
+          "type": "array"
+        },
+        "divisions": {
+          "items": {
+            "$ref": "#/$defs/Division"
+          },
+          "title": "Divisions",
+          "type": "array"
+        },
+        "clauses": {
+          "items": {
+            "$ref": "#/$defs/Clause"
+          },
+          "title": "Clauses",
+          "type": "array"
+        }
+      },
+      "title": "Subproceeding",
+      "type": "object"
+    },
+    "Talker": {
+      "additionalProperties": false,
+      "description": "A speaking turn — one person and the text of what they said.",
+      "properties": {
+        "document_order": {
+          "default": 0,
+          "title": "Document Order",
+          "type": "integer"
+        },
+        "extensions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Extensions",
+          "type": "object"
+        },
+        "uid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uid"
+        },
+        "member_source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Member Source Id"
+        },
+        "member_reference_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Member Reference Id"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TalkerRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TalkerKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "party": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Party"
+        },
+        "party_source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Party Source Id"
+        },
+        "electorate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Electorate"
+        },
+        "portfolios": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Portfolios",
+          "type": "array"
+        },
+        "first_speech": {
+          "default": false,
+          "title": "First Speech",
+          "type": "boolean"
+        },
+        "continued": {
+          "default": false,
+          "title": "Continued",
+          "type": "boolean"
+        },
+        "start_time": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Time"
+        },
+        "texts": {
+          "items": {
+            "$ref": "#/$defs/TextPara"
+          },
+          "title": "Texts",
+          "type": "array"
+        }
+      },
+      "title": "Talker",
+      "type": "object"
+    },
+    "TalkerKind": {
+      "enum": [
+        "speech",
+        "question",
+        "answer",
+        "interjection",
+        "paper",
+        "petition"
+      ],
+      "title": "TalkerKind",
+      "type": "string"
+    },
+    "TalkerRole": {
+      "enum": [
+        "member",
+        "minister",
+        "office",
+        "visitor"
+      ],
+      "title": "TalkerRole",
+      "type": "string"
+    },
+    "TextKind": {
+      "enum": [
+        "paragraph",
+        "heading",
+        "subheading",
+        "item",
+        "bookmark"
+      ],
+      "title": "TextKind",
+      "type": "string"
+    },
+    "TextPara": {
+      "additionalProperties": false,
+      "description": "One paragraph (or heading/item/bookmark) of official Hansard text.",
+      "properties": {
+        "document_order": {
+          "default": 0,
+          "title": "Document Order",
+          "type": "integer"
+        },
+        "extensions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Extensions",
+          "type": "object"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        },
+        "kind": {
+          "$ref": "#/$defs/TextKind",
+          "default": "paragraph"
+        },
+        "raw_text": {
+          "default": "",
+          "title": "Raw Text",
+          "type": "string"
+        },
+        "clean_text": {
+          "default": "",
+          "title": "Clean Text",
+          "type": "string"
+        },
+        "para_index": {
+          "default": 0,
+          "title": "Para Index",
+          "type": "integer"
+        },
+        "page_no": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page No"
+        },
+        "time_anchor": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Time Anchor"
+        },
+        "style": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Style"
+        },
+        "mapped_style": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mapped Style"
+        }
+      },
+      "title": "TextPara",
+      "type": "object"
+    },
+    "VoteValue": {
+      "enum": [
+        "AYES",
+        "NOES",
+        "PAIRS",
+        "ABSTENTIONS"
+      ],
+      "title": "VoteValue",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One sitting-day Hansard record (or fragment thereof) for one house.\n\nThe pipeline grain: ``(jurisdiction, date, house)`` plus ``source_doc_id``\nwhere a source publishes multiple fragments per day (SA subjects, WA\nextracts). Federal/NSW daily files normalize to a single fragment.",
+  "properties": {
+    "fragment_id": {
+      "title": "Fragment Id",
+      "type": "string"
+    },
+    "jurisdiction": {
+      "$ref": "#/$defs/Jurisdiction"
+    },
+    "source_doc_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Doc Id"
+    },
+    "schema_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Schema Version"
+    },
+    "name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name"
+    },
+    "date": {
+      "format": "date",
+      "title": "Date",
+      "type": "string"
+    },
+    "house": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "House"
+    },
+    "committee_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Committee Name"
+    },
+    "venue": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Venue"
+    },
+    "parliament_num": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parliament Num"
+    },
+    "session_num": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Session Num"
+    },
+    "parliament_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parliament Name"
+    },
+    "session_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Session Name"
+    },
+    "meeting_number": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Meeting Number"
+    },
+    "review_stage": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReviewStage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "start_time": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Start Time"
+    },
+    "end_time": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "End Time"
+    },
+    "start_page": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Start Page"
+    },
+    "end_page": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "End Page"
+    },
+    "date_modified": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Date Modified"
+    },
+    "lang": {
+      "default": "en",
+      "title": "Lang",
+      "type": "string"
+    },
+    "source_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Url"
+    },
+    "retrieved_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Retrieved At"
+    },
+    "proceedings": {
+      "items": {
+        "$ref": "#/$defs/Proceeding"
+      },
+      "title": "Proceedings",
+      "type": "array"
+    },
+    "texts": {
+      "items": {
+        "$ref": "#/$defs/TextPara"
+      },
+      "title": "Texts",
+      "type": "array"
+    },
+    "attendees": {
+      "items": {
+        "$ref": "#/$defs/Attendee"
+      },
+      "title": "Attendees",
+      "type": "array"
+    },
+    "meeting_time_marks": {
+      "items": {
+        "$ref": "#/$defs/MeetingTimeMark"
+      },
+      "title": "Meeting Time Marks",
+      "type": "array"
+    },
+    "extensions": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Extensions",
+      "type": "object"
+    }
+  },
+  "required": [
+    "fragment_id",
+    "jurisdiction",
+    "date"
+  ],
+  "title": "parlhansard canonical Hansard fragment",
+  "type": "object",
+  "$id": "https://github.com/parlhansard/parlhansard/schemas/canonical.schema.json"
+}
