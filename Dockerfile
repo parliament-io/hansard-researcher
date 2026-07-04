@@ -1,4 +1,4 @@
-# parlhansard pipeline image — CLI only; the data plane lives on a mounted
+# hansard-researcher pipeline image — CLI only; the data plane lives on a mounted
 # volume (see compose.yaml). Dashboards are a separate npm project and are
 # not part of this image.
 
@@ -24,8 +24,8 @@ RUN useradd --create-home --uid 1000 hansard \
 WORKDIR /app
 COPY --from=build /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH" \
-    PARLHANSARD_DATA_DIR=/data
+    HANSARD_RESEARCHER_DATA_DIR=/data
 USER hansard
 VOLUME /data
-ENTRYPOINT ["parlhansard"]
+ENTRYPOINT ["hansard-researcher"]
 CMD ["sources"]

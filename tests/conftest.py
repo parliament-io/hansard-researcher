@@ -4,7 +4,7 @@ import datetime as dt
 
 import pytest
 
-from parlhansard.model.canonical import (
+from hansard_researcher.model.canonical import (
     Division,
     DivisionResult,
     DivisionVote,
@@ -19,7 +19,7 @@ from parlhansard.model.canonical import (
     TextPara,
     VoteValue,
 )
-from parlhansard.model.ids import deterministic_id
+from hansard_researcher.model.ids import deterministic_id
 
 
 @pytest.fixture

@@ -3,9 +3,9 @@ title: Themes
 ---
 
 What parliament debates, classified against the open
-[seed taxonomy](https://github.com/parlhansard/parlhansard/tree/main/src/parlhansard/reference/themes)
+[seed taxonomy](https://github.com/hansard-researcher/hansard-researcher/tree/main/src/hansard_researcher/reference/themes)
 (≤30 broad categories per locale). Classification is **bring-your-own
-provider** (`parlhansard enrich themes`) — this page is empty until it has
+provider** (`hansard-researcher enrich themes`) — this page is empty until it has
 been run; each chart is scoped to one engine+model so different providers
 never mix.
 

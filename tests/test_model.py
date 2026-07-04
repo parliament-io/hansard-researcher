@@ -1,6 +1,6 @@
 import json
 
-from parlhansard.model.canonical import Fragment
+from hansard_researcher.model.canonical import Fragment
 
 
 def test_json_round_trip(synthetic_fragment):

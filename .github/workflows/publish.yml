@@ -1,21 +1,16 @@
 name: Publish
 
-# Daily pipeline: harvest -> normalize -> aggregate -> build dashboards -> Pages.
+# Dashboard build + Pages deploy from published derived artifacts.
 #
-# Licensing invariants (see LICENSES-DATA.md):
-# - data/raw + data/silver contain Hansard text: CACHED between runs, never
-#   published or committed.
-# - data/gold contains derived facts only: published as artifacts + baked into
-#   the static dashboard site.
+# The data pipeline (harvest -> normalize -> enrich -> aggregate) runs locally
+# via scripts/daily_publish.ps1: the raw/silver archive (500k+ files of
+# Hansard text — see LICENSES-DATA.md) and the GPU enrichment stages cannot
+# live on a runner. The local run uploads gold parquet + hansard.duckdb to the
+# rolling `data-latest` release, then dispatches this workflow. The runner
+# only ever sees derived facts.
 
 on:
-  schedule:
-    - cron: "30 19 * * *" # daily 19:30 UTC = early morning AWST/ACST
   workflow_dispatch:
-    inputs:
-      start:
-        description: "Backfill start date (YYYY-MM-DD)"
-        required: false
 
 permissions:
   contents: read
@@ -27,51 +22,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  pipeline:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Restore raw/silver cache (never published)
-        uses: actions/cache@v4
-        with:
-          path: data
-          key: hansard-data-${{ github.run_id }}
-          restore-keys: hansard-data-
-
-      - name: Sync dependencies
-        run: uv sync --dev
-
-      - name: Harvest (incremental — already-fetched days are skipped)
+      - name: Download derived DuckDB (data-latest release)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          START="${{ github.event.inputs.start }}"
-          if [ -z "$START" ]; then START=$(date -d '-21 days' +%F); fi
-          END=$(date +%F)
-          # --refresh-window keeps recent days converging from uncorrected
-          # proofs to the corrected record
-          uv run parlhansard harvest wa --start "$START" --end "$END" --refresh-window 45
-          uv run parlhansard harvest sa --start "$START" --end "$END" --refresh-window 45
-          uv run parlhansard harvest nsw --start "$START" --end "$END" --refresh-window 45
-          uv run parlhansard harvest au --start "$START" --end "$END" --refresh-window 45
-
-      - name: Normalize + aggregate
-        run: |
-          uv run parlhansard normalize wa
-          uv run parlhansard normalize sa
-          uv run parlhansard normalize nsw
-          uv run parlhansard normalize au
-          uv run parlhansard aggregate
-          uv run parlhansard db --out dashboards/sources/hansard/hansard.duckdb
-
-      - name: Publish gold datasets (derived facts only)
-        uses: actions/upload-artifact@v4
-        with:
-          name: hansard-gold
-          path: data/gold/
+          gh release download data-latest \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern hansard.duckdb \
+            --dir dashboards/sources/hansard \
+            --clobber
 
       - name: Build dashboards
         working-directory: dashboards
@@ -86,7 +53,7 @@ jobs:
           path: dashboards/build
 
   deploy:
-    needs: pipeline
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages

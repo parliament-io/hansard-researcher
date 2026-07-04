@@ -19,5 +19,5 @@ jobs:
         run: uv run pytest -q
       - name: Schema drift check
         run: |
-          uv run parlhansard schema --out /tmp/canonical.schema.json
+          uv run hansard-researcher schema --out /tmp/canonical.schema.json
           diff /tmp/canonical.schema.json schemas/canonical.schema.json

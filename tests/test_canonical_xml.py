@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from parlhansard.model.canonical import (
+from hansard_researcher.model.canonical import (
     Jurisdiction,
     ReviewStage,
     TalkerKind,
@@ -11,7 +11,7 @@ from parlhansard.model.canonical import (
     TextKind,
     VoteValue,
 )
-from parlhansard.normalize.canonical_xml import parse_extract, stitch_daily
+from hansard_researcher.normalize.canonical_xml import parse_extract, stitch_daily
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -118,7 +118,7 @@ def test_stitch_merges_proceedings_by_uid(daily):
 
 
 def test_stitch_document_order_global_and_unique(daily):
-    from parlhansard.normalize.canonical_xml import _iter_nodes
+    from hansard_researcher.normalize.canonical_xml import _iter_nodes
 
     orders = [n.document_order for n in _iter_nodes(daily)]
     assert len(orders) == len(set(orders)), "document_order must be unique across the day"

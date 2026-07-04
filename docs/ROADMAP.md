@@ -78,7 +78,7 @@ volume chart). Bill identity = normalized bill *name* + jurisdiction: WA/SA
 `bill_refs` uids do NOT track across houses (verified: 13 uids for one SA
 bill), while the name string does; NSW/AU carry the bill name as the subject
 name. **Stage vocabulary** is curated YAML shipped in-package
-(`src/parlhansard/reference/stages/{jur}.yaml`), seeded from the observed
+(`src/hansard_researcher/reference/stages/{jur}.yaml`), seeded from the observed
 subproceeding-name distribution — maps e.g. NSW LA's "Agreement in
 Principle" to `second_reading`. Coverage: SA 97.6% / AU 93.9% / NSW 81.8% /
 WA 76.6% of journey rows mapped; unmapped names keep their raw label
@@ -95,12 +95,12 @@ vLLM — no key] and hosted BYO-key endpoints, plus in-process
 sentence-transformers behind the `local` extra), paragraph embeddings
 (`enrich embed` → `data/enriched/`, incremental per model × house-day,
 vectors + join keys only — no prose) and semantic search (`enrich search`).
-Base URL + key come from `--provider` presets / `PARLHANSARD_ENRICH_*` env;
+Base URL + key come from `--provider` presets / `HANSARD_RESEARCHER_ENRICH_*` env;
 the project never ships, requires, or defaults to a key. Model id is part of
 the dedup keys, so re-running with a different provider is coherent.
 *Shipped (2026-07-04):* the **open seed theme taxonomy** — ≤30 broad
 categories per locale as versioned in-repo YAML
-(`src/parlhansard/reference/themes/{en-AU,en-NZ,en-GB}.yaml`, ported from
+(`src/hansard_researcher/reference/themes/{en-AU,en-NZ,en-GB}.yaml`, ported from
 the proven internal catalog; descriptions freshly authored, never Hansard
 text). Every jurisdiction maps to a locale list (wa/sa/nsw/au→en-AU,
 nz→en-NZ, scot→en-GB) because locale-mismatched label spaces poison
@@ -133,7 +133,7 @@ member ids land everywhere, member×theme cubes key on source talker ids
 canonical member ids + party. Unlocks party facets for NSW/SA (their talker
 XML carries no party; WA/AU do).
 
-- *Shipped (2026-07-04):* `parlhansard reference sa` —
+- *Shipped (2026-07-04):* `hansard-researcher reference sa` —
   `membersapp.parliament.sa.gov.au/api/members` (POST; memberType
   current/former; one row per person with party, house, electorate, DOB,
   elected→archived span) + contact-details API snapshots. Raw JSON is stored
@@ -141,7 +141,7 @@ XML carries no party; WA/AU do).
   **`pm_Id` IS the Hansard talker id** — verified: 176/177 SA speaker ids
   resolve by direct join (99.8% of 555k turns; the one miss is an
   empty-`@id` talker, for the name-match fallback).
-- *Shipped (2026-07-04):* `parlhansard reference nsw` — scrapes
+- *Shipped (2026-07-04):* `hansard-researcher reference nsw` — scrapes
   `all-members.aspx` (current: pk, party, house, electorate, 135 members)
   + `former-members-index.aspx?filter=A..Z` (former: identity only — pk,
   name, DOB; ~2,170). **NSW `pk` IS the Hansard talker id** (verified:

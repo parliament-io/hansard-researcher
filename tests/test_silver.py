@@ -3,9 +3,9 @@ from pathlib import Path
 import duckdb
 import pytest
 
-from parlhansard.model.canonical import Jurisdiction
-from parlhansard.normalize.canonical_xml import parse_extract, stitch_daily
-from parlhansard.normalize.silver import fragment_rows, write_silver
+from hansard_researcher.model.canonical import Jurisdiction
+from hansard_researcher.normalize.canonical_xml import parse_extract, stitch_daily
+from hansard_researcher.normalize.silver import fragment_rows, write_silver
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

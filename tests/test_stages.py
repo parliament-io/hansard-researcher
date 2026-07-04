@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from parlhansard.reference.stages import STAGE_ORDER, load_stage_vocab
+from hansard_researcher.reference.stages import STAGE_ORDER, load_stage_vocab
 
 
 def test_vocab_loads_all_live_jurisdictions():

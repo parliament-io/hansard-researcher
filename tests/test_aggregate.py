@@ -3,10 +3,10 @@ from pathlib import Path
 import duckdb
 import pytest
 
-from parlhansard.aggregate.cubes import GOLD_QUERIES, build_db, build_gold
-from parlhansard.model.canonical import Jurisdiction
-from parlhansard.normalize.canonical_xml import parse_extract, stitch_daily
-from parlhansard.normalize.silver import write_silver
+from hansard_researcher.aggregate.cubes import GOLD_QUERIES, build_db, build_gold
+from hansard_researcher.model.canonical import Jurisdiction
+from hansard_researcher.normalize.canonical_xml import parse_extract, stitch_daily
+from hansard_researcher.normalize.silver import write_silver
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -118,8 +118,8 @@ def test_gold_contains_no_hansard_prose(gold):
 def test_register_backfills_nsw_division_names_and_party(tmp_path):
     """NSW division votes come with blank names + no party; the member
     register fills both in gold (source values always win when present)."""
-    from parlhansard.normalize.nsw_xml import parse_nsw_fragment
-    from parlhansard.reference.register import member_id, write_register
+    from hansard_researcher.normalize.nsw_xml import parse_nsw_fragment
+    from hansard_researcher.reference.register import member_id, write_register
 
     fragment_xml = (FIXTURES / "nsw_fragment_division.xml").read_bytes()
     daily = stitch_daily([parse_nsw_fragment(fragment_xml, doc_id="TEST-DIV-0001")])
@@ -168,7 +168,7 @@ def test_register_backfills_nsw_division_names_and_party(tmp_path):
 def test_bill_journey_and_bills_cubes(tmp_path):
     """A bill-shaped NSW subject yields a journey row with a canonical stage
     (via the curated vocabulary) and a one-row bills summary."""
-    from parlhansard.normalize.nsw_xml import parse_nsw_fragment
+    from hansard_researcher.normalize.nsw_xml import parse_nsw_fragment
 
     fragment_xml = (FIXTURES / "nsw_fragment_division.xml").read_bytes()
     daily = stitch_daily([parse_nsw_fragment(fragment_xml, doc_id="TEST-DIV-0001")])
@@ -196,9 +196,9 @@ def test_bill_journey_and_bills_cubes(tmp_path):
 def test_theme_cubes_from_enriched_assignments(tmp_path):
     """The C# aggregator's theme cube set, fed by 'enrich themes' output:
     a themed NSW bill subject with a division populates all six cubes."""
-    from parlhansard.enrich.themes import classify_themes
-    from parlhansard.normalize.nsw_xml import parse_nsw_fragment
-    from parlhansard.reference.themes import Theme
+    from hansard_researcher.enrich.themes import classify_themes
+    from hansard_researcher.normalize.nsw_xml import parse_nsw_fragment
+    from hansard_researcher.reference.themes import Theme
     from test_enrich import FakeEmbedder
 
     taxonomy = [
@@ -244,6 +244,12 @@ def test_theme_cubes_from_enriched_assignments(tmp_path):
     ).fetchall()
     assert ("81", "AYES", 1) in votes and ("28", "NOES", 1) in votes
 
+    (coverage,) = _q(
+        tmp_path / "gold",
+        "select themed, theme_models, themed_subjects from 'pipeline_coverage.parquet'",
+    ).fetchall()
+    assert coverage == (True, "embedding-fake-embed-v1", 1)
+
     # the division fixture has no speaking turns -> no member_theme_rank rows,
     # and every subject got a theme -> no candidates
     for empty_cube in ("member_theme_rank", "theme_candidates"):
@@ -251,6 +257,98 @@ def test_theme_cubes_from_enriched_assignments(tmp_path):
             tmp_path / "gold", f"select count(*) from '{empty_cube}.parquet'"
         ).fetchone()
         assert count == 0, empty_cube
+
+
+def test_pipeline_coverage(tmp_path):
+    """One row per silver house-day joined with day-grain harvest info;
+    harvested-but-never-normalized days surface with house null; embeddings
+    flip the embedded flag per house-day."""
+    import json
+
+    from hansard_researcher.enrich.embed import embed_texts
+    from test_enrich import FakeEmbedder
+
+    extracts = [
+        parse_extract(
+            (FIXTURES / f"extract_{i:04d}.xml").read_bytes(),
+            jurisdiction=Jurisdiction.WA,
+            extract_index=i,
+        )
+        for i in (1, 2)
+    ]
+    write_silver([stitch_daily(extracts)], tmp_path / "silver")
+    embed_texts(
+        tmp_path, "wa", FakeEmbedder(), provider="test", model="fake/embed-v1",
+        log=lambda *_: None,
+    )
+
+    raw = tmp_path / "raw"
+    for date, meta in (
+        ("2026-03-04", {"documents": 2, "harvested_at": "2026-07-01T00:00:00+00:00"}),
+        ("2026-03-05", {"documents": 3, "harvested_at": "2026-07-02T00:00:00+00:00"}),
+    ):
+        day = raw / "wa" / date / "lh"
+        day.mkdir(parents=True)
+        (day / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+    build_gold(
+        tmp_path / "silver", tmp_path / "gold",
+        enriched_dir=tmp_path / "enriched", raw_dir=raw,
+    )
+    rows = _q(
+        tmp_path / "gold",
+        "select cast(date as varchar), house, harvested, normalized, embedded,"
+        " themed, raw_houses, raw_documents, subjects, texts"
+        " from 'pipeline_coverage.parquet' order by date",
+    ).fetchall()
+    assert len(rows) == 2
+    normalized_day, raw_only_day = rows
+    assert normalized_day[0] == "2026-03-04"
+    assert normalized_day[2:6] == (True, True, True, False)
+    assert normalized_day[6:8] == ("lh", 2)
+    assert normalized_day[8] == 2  # both fixture subjects counted
+    assert normalized_day[9] > 0
+    assert raw_only_day[:6] == ("2026-03-05", None, True, False, False, False)
+    assert raw_only_day[8:] == (0, 0)
+
+
+def test_collect_status(tmp_path):
+    """Directory-walk status over a small archive; --counts adds row counts."""
+    import json
+
+    from hansard_researcher.aggregate.coverage import collect_status
+
+    extracts = [
+        parse_extract(
+            (FIXTURES / f"extract_{i:04d}.xml").read_bytes(),
+            jurisdiction=Jurisdiction.WA,
+            extract_index=i,
+        )
+        for i in (1, 2)
+    ]
+    write_silver([stitch_daily(extracts)], tmp_path / "silver")
+    pending = tmp_path / "raw" / "wa" / "2026-03-05" / "lh"
+    pending.mkdir(parents=True)
+    (pending / "meta.json").write_text(
+        json.dumps({"documents": 3, "harvested_at": "2026-07-02T00:00:00+00:00"}),
+        encoding="utf-8",
+    )
+
+    status = collect_status(tmp_path)
+    wa = status["jurisdictions"]["wa"]
+    assert (wa["raw_days"], wa["raw_documents"]) == (1, 3)
+    assert (wa["silver_days"], wa["silver_house_days"]) == (1, 1)
+    assert wa["first_date"] == wa["last_date"] == "2026-03-04"
+    assert wa["pending_normalize_days"] == 1
+    assert "subjects" not in wa  # row counts are opt-in
+    assert status["enrichment"]["silver_house_days"] == 1
+    assert status["gold"]["cubes"] == 0
+
+    with_counts = collect_status(tmp_path, counts=True)
+    wa = with_counts["jurisdictions"]["wa"]
+    assert wa["subjects"] == 2
+    assert wa["talker_turns"] == 3
+    assert with_counts["enrichment"]["silver_subjects"] == 2
 
 
 def test_theme_cubes_empty_without_enrichment(gold):

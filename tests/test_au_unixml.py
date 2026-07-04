@@ -3,13 +3,13 @@ from pathlib import Path
 
 import pytest
 
-from parlhansard.model.canonical import (
+from hansard_researcher.model.canonical import (
     Jurisdiction,
     ReviewStage,
     TalkerKind,
     VoteValue,
 )
-from parlhansard.normalize.au_unixml import parse_daily
+from hansard_researcher.normalize.au_unixml import parse_daily
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

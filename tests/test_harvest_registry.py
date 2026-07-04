@@ -2,9 +2,9 @@ import datetime as dt
 
 import pytest
 
-from parlhansard.harvest import all_adapters, get_adapter
-from parlhansard.harvest.hansard_api import HansardPublicApiAdapter
-from parlhansard.model.canonical import Jurisdiction
+from hansard_researcher.harvest import all_adapters, get_adapter
+from hansard_researcher.harvest.hansard_api import HansardPublicApiAdapter
+from hansard_researcher.model.canonical import Jurisdiction
 
 
 def test_all_six_jurisdictions_registered():

@@ -4,7 +4,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from parlhansard.harvest.nsw import NswAdapter
+from hansard_researcher.harvest.nsw import NswAdapter
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

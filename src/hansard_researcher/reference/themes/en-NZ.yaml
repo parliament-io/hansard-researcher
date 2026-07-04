@@ -1,0 +1,94 @@
+# Open seed theme taxonomy for New Zealand — an NZ house has a materially
+# different debate vocabulary from an Australian one, and classifying against
+# the wrong locale's list poisons accuracy. See en-AU.yaml for conventions.
+locale: en-NZ
+version: 2
+themes:
+  - id: agriculture-primary-industries
+    name: Agriculture and Primary Industries
+    description: Farming, horticulture, fisheries, forestry, biosecurity, primary production.
+  - id: arts-culture-heritage
+    name: Arts, Culture and Heritage
+    description: Creative sector, cultural institutions, heritage protection, broadcasting.
+  - id: bills-legislation
+    procedural: true
+    name: Bills and Legislation
+    description: Procedural debate on bills, amendments, the legislative process.
+  - id: business-innovation-employment
+    name: Business, Innovation and Employment
+    description: Industry policy, trade, small business, science and innovation, immigration settings.
+  - id: children-whanau
+    name: Children and Whānau
+    description: Child wellbeing, Oranga Tamariki, youth services, family law.
+  - id: climate-environment
+    name: Climate Change and Environment
+    description: Emissions reduction, conservation, biodiversity, freshwater and resource management.
+  - id: corrections-justice
+    name: Corrections and Justice
+    description: Courts, prisons, sentencing, legal aid, restorative justice.
+  - id: defence-veterans
+    name: Defence and Veterans
+    description: Defence policy, NZDF, veterans' affairs.
+  - id: disability-issues
+    name: Disability Issues
+    description: Disability support, accessibility, Whaikaha and equivalent services.
+  - id: economy-finance
+    name: Economy and Finance
+    description: Budget, taxation, fiscal and monetary policy, economic forecasts.
+  - id: education-workforce
+    name: Education and Workforce
+    description: Early learning, schools, tertiary education, skills and training.
+  - id: energy-resources
+    name: Energy and Resources
+    description: Electricity, gas, renewables, minerals, petroleum, resource management.
+  - id: foreign-affairs-trade
+    name: Foreign Affairs and Trade
+    description: Diplomacy, trade agreements, Pacific relations, overseas development.
+  - id: health
+    name: Health
+    description: Public health, Te Whatu Ora, hospitals, primary care, mental health and addiction.
+  - id: housing-urban-development
+    name: Housing and Urban Development
+    description: Public and affordable housing, Kāinga Ora, rental market, homelessness.
+  - id: infrastructure-transport
+    name: Infrastructure and Transport
+    description: Roads, rail, ports, public transport, major infrastructure projects.
+  - id: local-government
+    name: Local Government
+    description: Councils, local planning, three waters, intergovernmental relations.
+  - id: maori-affairs
+    name: Māori Affairs
+    description: Te ao Māori, Whānau Ora, Māori economic development, kaupapa Māori services.
+  - id: pacific-peoples
+    name: Pacific Peoples
+    description: Pacific community wellbeing, languages, and development.
+  - id: petitions
+    procedural: true
+    name: Petitions
+    description: Citizen petitions presented to the House.
+  - id: police-emergency-management
+    name: Police and Emergency Management
+    description: Policing, fire and emergency, civil defence, community safety.
+  - id: procedural-matters
+    procedural: true
+    name: Procedural Matters
+    description: Standing Orders, points of order, Speaker's rulings, leave of the House.
+  - id: public-service-accountability
+    name: Public Service and Accountability
+    description: Public service, Official Information Act, integrity and oversight bodies.
+  - id: question-time
+    procedural: true
+    name: Question Time
+    description: Oral questions to Ministers and supplementary questions.
+  - id: social-development
+    name: Social Development
+    description: Income support, superannuation, welfare, poverty reduction.
+  - id: te-tiriti-treaty-settlements
+    name: Te Tiriti o Waitangi and Treaty Settlements
+    description: Treaty obligations, settlement negotiations, Waitangi Tribunal matters.
+  - id: tourism-hospitality
+    name: Tourism and Hospitality
+    description: Visitor economy, tourism infrastructure, hospitality sector.
+  - id: women-gender-equality
+    name: Women and Gender Equality
+    description: Women's safety, gender equality, family and sexual violence prevention.

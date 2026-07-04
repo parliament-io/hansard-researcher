@@ -1,6 +1,6 @@
-# parlhansard in a sandbox: the image holds only code; the existing local
+# hansard-researcher in a sandbox: the image holds only code; the existing local
 # archive (./data, ~4.5 GB raw) is bind-mounted at /data (the CLI reads
-# PARLHANSARD_DATA_DIR, so no --data-dir needed).
+# HANSARD_RESEARCHER_DATA_DIR, so no --data-dir needed).
 #
 #   docker compose build
 #   docker compose run --rm pipeline normalize wa --workers 8   # no network
@@ -15,7 +15,7 @@
 
 x-base: &base
   build: .
-  image: parlhansard
+  image: hansard-researcher
   init: true # reap normalize's worker processes on Ctrl+C
   volumes:
     - ./data:/data
@@ -37,13 +37,13 @@ services:
 
   # Optional local AI services for Tier 3 (--profile enrich): Ollama serves
   # models, Qdrant serves vector search. Both publish on localhost only, so
-  # the host pipeline (`uv run parlhansard ...`) can use them directly:
+  # the host pipeline (`uv run hansard-researcher ...`) can use them directly:
   #
   #   docker compose --profile enrich up -d
   #   docker compose exec ollama ollama pull nomic-embed-text
-  #   uv run parlhansard enrich embed wa --provider ollama
-  #   uv run parlhansard enrich index wa --provider ollama
-  #   uv run parlhansard enrich search "housing" --provider ollama --backend qdrant
+  #   uv run hansard-researcher enrich embed wa --provider ollama
+  #   uv run hansard-researcher enrich index wa --provider ollama
+  #   uv run hansard-researcher enrich search "housing" --provider ollama --backend qdrant
   #
   # Fully sandboxed alternative: the `enrich` service reaches both over the
   # internal-only network and has no route to the internet:
@@ -57,6 +57,18 @@ services:
       - "127.0.0.1:11434:11434"
     volumes:
       - ollama-models:/root/.ollama
+    environment:
+      OLLAMA_NUM_PARALLEL: "16"  # embed batches are small; nomic is 323 MB on a 24 GB GPU
+    # use the host NVIDIA GPU when present (Docker Desktop: enable GPU
+    # support). Without one, compose fails the reservation — comment out
+    # to fall back to CPU inference.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   qdrant:
     image: qdrant/qdrant
@@ -72,9 +84,9 @@ services:
     profiles: [enrich, ollama]
     networks: [enrich] # internal-only: no route out
     environment:
-      PARLHANSARD_ENRICH_PROVIDER: ollama
-      PARLHANSARD_ENRICH_BASE_URL: http://ollama:11434/v1
-      PARLHANSARD_QDRANT_URL: http://qdrant:6333
+      HANSARD_RESEARCHER_ENRICH_PROVIDER: ollama
+      HANSARD_RESEARCHER_ENRICH_BASE_URL: http://ollama:11434/v1
+      HANSARD_RESEARCHER_QDRANT_URL: http://qdrant:6333
 
 networks:
   enrich:

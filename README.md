@@ -1,4 +1,4 @@
-# parlhansard
+# Hansard Researcher
 
 Open-source analytics extraction for Parliamentary Hansard daily XML.
 
@@ -45,23 +45,23 @@ on a laptop.
 ```bash
 uv sync
 uv run pytest                        # 108 tests
-uv run parlhansard sources           # adapter status per jurisdiction
-uv run parlhansard schema            # emit canonical JSON Schema
+uv run hansard-researcher sources           # adapter status per jurisdiction
+uv run hansard-researcher schema            # emit canonical JSON Schema
 
 # incremental harvest (skips already-fetched days; re-probes missing ones;
 # --refresh-window re-fetches recent days so proofs converge to corrected)
-uv run parlhansard harvest wa --start 2026-06-01 --end 2026-07-03 --refresh-window 45
+uv run hansard-researcher harvest wa --start 2026-06-01 --end 2026-07-03 --refresh-window 45
 
 # raw XML -> silver Parquet (parallel across house-days; default CPU-1 workers)
-uv run parlhansard normalize wa --workers 8
+uv run hansard-researcher normalize wa --workers 8
 
 # member register (Tier 2 reference data; SA live) — raw snapshots are
 # stored under data/reference/raw so --offline rebuilds without network
-uv run parlhansard reference sa
+uv run hansard-researcher reference sa
 
 # silver -> gold cubes (full recompute, seconds) + self-contained DuckDB
-uv run parlhansard aggregate
-uv run parlhansard db --out data/hansard.duckdb
+uv run hansard-researcher aggregate
+uv run hansard-researcher db --out data/hansard.duckdb
 
 # query anything — no server needed
 uv run python -c "import duckdb; print(duckdb.sql(
@@ -84,32 +84,32 @@ your own key — or run embeddings in-process:
 docker compose --profile enrich up -d
 docker compose exec ollama ollama pull nomic-embed-text
 
-uv run parlhansard enrich embed wa --provider ollama
-uv run parlhansard enrich search "housing affordability" --provider ollama
+uv run hansard-researcher enrich embed wa --provider ollama
+uv run hansard-researcher enrich search "housing affordability" --provider ollama
 
 # at archive scale, index into Qdrant for fast ANN search (join keys only —
 # no Hansard prose enters the index; text hydrates from local silver)
-uv run parlhansard enrich index wa --provider ollama
-uv run parlhansard enrich search "housing affordability" --provider ollama --backend qdrant
+uv run hansard-researcher enrich index wa --provider ollama
+uv run hansard-researcher enrich search "housing affordability" --provider ollama --backend qdrant
 
 # theme classification against the seed taxonomy (reference/themes/*.yaml):
 # embedding engine = cheap, works with any provider; llm engine = higher
 # quality via a chat model. Re-running `aggregate` then populates the six
 # theme gold cubes (theme_by_week, theme_cooccurrence, member_theme_rank,
 # bill_theme_link, member_vote_by_theme, theme_candidates) + /themes page
-uv run parlhansard enrich themes wa --provider ollama
-uv run parlhansard enrich themes wa --provider ollama --engine llm
+uv run hansard-researcher enrich themes wa --provider ollama
+uv run hansard-researcher enrich themes wa --provider ollama --engine llm
 
 # hosted, BYO key
-export PARLHANSARD_ENRICH_API_KEY=sk-...
-uv run parlhansard enrich embed wa --provider openai
+export HANSARD_RESEARCHER_ENRICH_API_KEY=sk-...
+uv run hansard-researcher enrich embed wa --provider openai
 
 # in-process sentence-transformers (no server at all; pulls torch)
 uv sync --extra local
-uv run parlhansard enrich embed wa --provider local
+uv run hansard-researcher enrich embed wa --provider local
 
 # anything else that speaks the OpenAI API
-export PARLHANSARD_ENRICH_BASE_URL=https://my-gateway/v1   # + _API_KEY, _EMBED_MODEL
+export HANSARD_RESEARCHER_ENRICH_BASE_URL=https://my-gateway/v1   # + _API_KEY, _EMBED_MODEL
 ```
 
 Vectors land in `data/enriched/` (join keys only — no Hansard prose) with
@@ -140,7 +140,7 @@ markdown with SQL blocks, built into a fully static site from the **gold
 cubes only** (derived facts; no Hansard prose can reach the site):
 
 ```bash
-uv run parlhansard db --out dashboards/sources/hansard/hansard.duckdb
+uv run hansard-researcher db --out dashboards/sources/hansard/hansard.duckdb
 cd dashboards && npm install && npm run sources && npm run dev   # or: npm run build
 ```
 
@@ -161,7 +161,7 @@ gold is publishable everywhere (enforced by test — gold cubes carry no
 ```
 schemas/          canonical XSD + generated JSON Schema + source-schema lineage
                   (wa/sa swagger copies, federal ExtractSchema v1)
-src/parlhansard/
+src/hansard_researcher/
   model/          canonical Pydantic model, deterministic ids, content hashing
   harvest/        adapters: wa, sa (shared API), nsw, au + nz, scot stubs
   normalize/      canonical_xml (WA/SA + stitch_daily), au_unixml, nsw_xml,

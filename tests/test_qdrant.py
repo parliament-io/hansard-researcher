@@ -7,11 +7,11 @@ import json
 import httpx
 import pytest
 
-from parlhansard.enrich.embed import embed_texts
-from parlhansard.enrich.providers import ProviderError
-from parlhansard.enrich.qdrant import QdrantIndex, collection_name, index_embeddings
-from parlhansard.enrich.search import search_qdrant
-from parlhansard.normalize.silver import write_silver
+from hansard_researcher.enrich.embed import embed_texts
+from hansard_researcher.enrich.providers import ProviderError
+from hansard_researcher.enrich.qdrant import QdrantIndex, collection_name, index_embeddings
+from hansard_researcher.enrich.search import search_qdrant
+from hansard_researcher.normalize.silver import write_silver
 from test_enrich import FakeEmbedder
 
 

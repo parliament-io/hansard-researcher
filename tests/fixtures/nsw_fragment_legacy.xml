@@ -1,0 +1,36 @@
+<hansard sid="" pid="">
+  <hansard.header>
+    <date>2010-05-11T00:00:00+10:00</date>
+    <parliament.number></parliament.number>
+    <session.number></session.number>
+    <parliament.session.name></parliament.session.name>
+    <chamber>Legislative Assembly</chamber>
+    <draft>false</draft>
+  </hansard.header>
+  <chamber.xscript>
+    <fragment.data>
+      <proceeding pos="5">
+        <proceedinginfo>
+          <text>Motions</text>
+        </proceedinginfo>
+        <topic pdfid="" pos="5" uid="" ref="2">
+          <topicinfo>
+            <text>Synthetic Legacy Motion</text>
+          </topicinfo>
+        </topic>
+      </proceeding>
+    </fragment.data>
+    <fragment.text>
+      <body>
+        <p class="MsoNormal" align="center">
+          <b data-pos="6">SYNTHETIC LEGACY MOTION</b>
+        </p>
+        <p class="MsoNormal">
+          <b data-pos="9" data-mode="member" data-type="article" data-article="none" data-value="12" data-officeholder="false">Mr Test Legacy:</b> Point of order: this synthetic pre-2016 fragment marks speakers with bold elements.</p>
+        <p class="MsoNormal" data-pos="10">The bold marker style continued in use until the 2016 conversion.</p>
+        <p class="MsoNormal">
+          <b data-pos="11" data-mode="member" data-type="article" data-article="none" data-value="34" data-officeholder="true">Mr SPEAKER:</b> Order! The synthetic member will resume their seat.</p>
+      </body>
+    </fragment.text>
+  </chamber.xscript>
+</hansard>

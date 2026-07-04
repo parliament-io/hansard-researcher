@@ -1,4 +1,4 @@
-from parlhansard.model.ids import deterministic_id
+from hansard_researcher.model.ids import deterministic_id
 
 
 def test_same_parts_same_id():

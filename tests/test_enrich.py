@@ -14,16 +14,16 @@ import httpx
 import pyarrow.dataset as ds
 import pytest
 
-from parlhansard.enrich.embed import embed_texts, model_slug
-from parlhansard.enrich.providers import (
+from hansard_researcher.enrich.embed import embed_texts, model_slug
+from hansard_researcher.enrich.providers import (
     PRESETS,
     OpenAICompatClient,
     ProviderConfig,
     ProviderError,
     resolve_config,
 )
-from parlhansard.enrich.search import search
-from parlhansard.normalize.silver import write_silver
+from hansard_researcher.enrich.search import search
+from hansard_researcher.normalize.silver import write_silver
 
 
 class FakeEmbedder:
@@ -46,7 +46,7 @@ class FakeEmbedder:
 @pytest.fixture(autouse=True)
 def _clean_enrich_env(monkeypatch):
     for suffix in ("PROVIDER", "BASE_URL", "API_KEY", "CHAT_MODEL", "EMBED_MODEL"):
-        monkeypatch.delenv(f"PARLHANSARD_ENRICH_{suffix}", raising=False)
+        monkeypatch.delenv(f"HANSARD_RESEARCHER_ENRICH_{suffix}", raising=False)
 
 
 # --- config resolution -------------------------------------------------------
@@ -61,17 +61,22 @@ def test_presets_resolve():
     assert resolve_config("local").base_url is None
     assert resolve_config("openai").base_url == "https://api.openai.com/v1"
 
+    jina = resolve_config("jina")  # embeddings-only host: no chat default
+    assert jina.base_url == "https://api.jina.ai/v1"
+    assert jina.embed_model == "jina-embeddings-v5-text-small"
+    assert jina.chat_model is None
+
 
 def test_env_overrides_and_custom_provider(monkeypatch):
-    monkeypatch.setenv("PARLHANSARD_ENRICH_BASE_URL", "https://vllm.internal/v1")
-    monkeypatch.setenv("PARLHANSARD_ENRICH_API_KEY", "sk-byo")
-    monkeypatch.setenv("PARLHANSARD_ENRICH_EMBED_MODEL", "my-embedder")
+    monkeypatch.setenv("HANSARD_RESEARCHER_ENRICH_BASE_URL", "https://vllm.internal/v1")
+    monkeypatch.setenv("HANSARD_RESEARCHER_ENRICH_API_KEY", "sk-byo")
+    monkeypatch.setenv("HANSARD_RESEARCHER_ENRICH_EMBED_MODEL", "my-embedder")
     config = resolve_config()  # no preset: BASE_URL implies 'custom'
     assert (config.provider, config.base_url) == ("custom", "https://vllm.internal/v1")
     assert config.api_key == "sk-byo"
     assert config.embed_model == "my-embedder"
 
-    monkeypatch.setenv("PARLHANSARD_ENRICH_EMBED_MODEL", "mxbai-embed-large")
+    monkeypatch.setenv("HANSARD_RESEARCHER_ENRICH_EMBED_MODEL", "mxbai-embed-large")
     assert resolve_config("ollama").embed_model == "mxbai-embed-large"  # env beats preset
 
 
@@ -183,6 +188,10 @@ def test_embed_is_incremental_until_forced(data_dir):
     _run_embed(data_dir)
     assert _run_embed(data_dir) == {"days": 0, "skipped": 1, "vectors": 0}
     assert _run_embed(data_dir, force=True) == {"days": 1, "skipped": 0, "vectors": 2}
+    # the worker pool path writes the same result
+    assert _run_embed(data_dir, force=True, workers=4) == {
+        "days": 1, "skipped": 0, "vectors": 2,
+    }
 
 
 def test_search_ranks_the_matching_paragraph_first(data_dir):

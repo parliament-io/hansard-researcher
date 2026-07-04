@@ -1,7 +1,7 @@
 """Live payloads deviate from the XSD: counts as element text, no @vote."""
 
-from parlhansard.model.canonical import DivisionResult, Jurisdiction
-from parlhansard.normalize.canonical_xml import parse_extract
+from hansard_researcher.model.canonical import DivisionResult, Jurisdiction
+from hansard_researcher.normalize.canonical_xml import parse_extract
 
 REAL_STYLE = b"""<?xml version="1.0" encoding="utf-8"?>
 <hansard id="frag-x" tocId="" schemaVersion="4.0" xml:lang="en-AU">

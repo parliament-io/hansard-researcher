@@ -8,8 +8,8 @@ import json
 import pyarrow.dataset as ds
 import pytest
 
-from parlhansard.reference.register import member_id, write_register
-from parlhansard.reference.sa import _parse_date, build_rows, fetch_raw
+from hansard_researcher.reference.register import member_id, write_register
+from hansard_researcher.reference.sa import _parse_date, build_rows, fetch_raw
 
 CURRENT = [
     {

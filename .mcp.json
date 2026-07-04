@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "hansard-researcher": {
+      "command": "uv",
+      "args": ["run", "hansard-researcher", "mcp"]
+    }
+  }
+}

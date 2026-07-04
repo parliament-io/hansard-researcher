@@ -7,8 +7,8 @@ import json
 
 import pytest
 
-from parlhansard.reference.nsw import build_rows, parse_current, parse_former_index
-from parlhansard.reference.register import member_id
+from hansard_researcher.reference.nsw import build_rows, parse_current, parse_former_index
+from hansard_researcher.reference.register import member_id
 
 # mirrors the real all-members table: hidden data columns after the visible ones
 CURRENT_HTML = b"""

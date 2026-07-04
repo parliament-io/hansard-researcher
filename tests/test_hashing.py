@@ -1,7 +1,7 @@
 import datetime as dt
 
-from parlhansard.model.canonical import ReviewStage
-from parlhansard.model.hashing import fragment_content_hash
+from hansard_researcher.model.canonical import ReviewStage
+from hansard_researcher.model.hashing import fragment_content_hash
 
 
 def test_hash_is_stable(synthetic_fragment):

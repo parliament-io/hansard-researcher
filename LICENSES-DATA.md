@@ -29,10 +29,10 @@ Notes for downstream users:
   you are transmitting Hansard text to that provider under your own
   arrangement with it — the local-server path (Ollama/Qdrant via
   `docker compose --profile enrich`) keeps text on your machine.
-- Member register data (`parlhansard reference`) is compiled from official
+- Member register data (`hansard-researcher reference`) is compiled from official
   parliamentary websites/APIs: names, party, electorate, service dates —
   facts, published with attribution to the source parliament.
-- If you rebuild the full-text tables locally (`parlhansard harvest` +
+- If you rebuild the full-text tables locally (`hansard-researcher harvest` +
   `normalize`), your local copy is obtained from the official source under
   that parliament's terms — including, for federal data, the **non-commercial**
   restriction, which binds your use, not just ours.

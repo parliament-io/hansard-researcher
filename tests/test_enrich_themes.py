@@ -5,19 +5,22 @@ from __future__ import annotations
 import pyarrow.dataset as ds
 import pytest
 
-from parlhansard.enrich.themes import classify_themes
-from parlhansard.normalize.silver import write_silver
-from parlhansard.reference.themes import Theme
+from hansard_researcher.enrich.themes import classify_themes
+from hansard_researcher.normalize.silver import write_silver
+from hansard_researcher.reference.themes import Theme
 from test_enrich import FakeEmbedder
 
 
-def _theme(theme_id: str, name: str, description: str) -> Theme:
+def _theme(
+    theme_id: str, name: str, description: str, procedural: bool = False
+) -> Theme:
     return Theme(
         locale="en-AU",
         taxonomy_version=1,
         theme_id=theme_id,
         name=name,
         description=description,
+        procedural=procedural,
     )
 
 
@@ -71,6 +74,35 @@ def test_embedding_engine_ranks_overlapping_theme_first(data_dir):
     assert not {"raw_text", "clean_text", "doc"} & columns
 
 
+def test_procedural_themes_excluded_by_default(data_dir):
+    """A procedural theme that would win on vocabulary overlap is not even a
+    candidate unless include_procedural=True (kind-of-business labels are
+    structural facts, and they attract topical subjects — see themes.py)."""
+    taxonomy = [
+        *TAXONOMY,
+        # deliberately overlaps the fixture better than widget-policy does
+        _theme(
+            "question-time", "Question Time",
+            "Will the minister regulate widgets minister widgets question",
+            procedural=True,
+        ),
+    ]
+    kwargs = dict(
+        engine="embedding", model="fake/embed-v1", provider="test",
+        embedder=FakeEmbedder(), min_score=0.05, log=lambda *_: None,
+    )
+    classify_themes(data_dir, "wa", themes=taxonomy, **kwargs)
+    labels = _read_labels(data_dir)
+    assert "question-time" not in {r["theme_id"] for r in labels}
+    assert {r["theme_id"] for r in labels if r["rank"] == 1} == {"widget-policy"}
+
+    classify_themes(
+        data_dir, "wa", themes=taxonomy, include_procedural=True, force=True,
+        **kwargs,
+    )
+    assert "question-time" in {r["theme_id"] for r in _read_labels(data_dir)}
+
+
 def test_embedding_engine_is_incremental(data_dir):
     kwargs = dict(
         engine="embedding", model="fake/embed-v1", provider="test",
@@ -82,6 +114,9 @@ def test_embedding_engine_is_incremental(data_dir):
     assert (again["days"], again["skipped"]) == (0, 1)
     forced = classify_themes(data_dir, "wa", force=True, **kwargs)
     assert forced["days"] == 1
+    # the worker pool path writes the same result
+    pooled = classify_themes(data_dir, "wa", force=True, workers=4, **kwargs)
+    assert pooled["days"] == 1 and pooled["labels"] == forced["labels"]
 
 
 class FakeCompleter:

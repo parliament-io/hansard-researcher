@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from parlhansard.model.canonical import Jurisdiction
-from parlhansard.reference.themes import (
+from hansard_researcher.model.canonical import Jurisdiction
+from hansard_researcher.reference.themes import (
     JURISDICTION_LOCALES,
     load_themes,
     locale_for,
@@ -26,7 +26,17 @@ def test_locale_lists_are_bounded_and_unique():
         assert len({t.theme_id for t in themes}) == len(themes)
         assert len({t.name.lower() for t in themes}) == len(themes)
         assert all(t.description for t in themes)
-        assert all(t.taxonomy_version == 1 for t in themes)
+        assert all(t.taxonomy_version == 2 for t in themes)
+
+
+def test_procedural_themes_are_marked_in_every_locale():
+    """The kind-of-business themes are flagged so the classifier can exclude
+    them (they attract topical subjects under embedding classification)."""
+    for locale in ("en-AU", "en-NZ", "en-GB"):
+        procedural = {t.theme_id for t in load_themes(locale) if t.procedural}
+        assert procedural == {
+            "bills-legislation", "petitions", "procedural-matters", "question-time",
+        }
 
 
 def test_locale_vocabularies_differ_where_they_should():
