@@ -22,6 +22,7 @@ from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.dataset as ds
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from hansard_researcher.model.canonical import Clause, Division, Fragment, Subproceeding, Talker
 from hansard_researcher.model.hashing import fragment_content_hash
@@ -510,6 +511,20 @@ def fragment_rows(fragment: Fragment) -> dict[str, list[dict]]:
     return _Flattener(fragment).run()
 
 
+# delete_matching removes the day's previous files before rewriting; on
+# Windows an AV/indexer scan can briefly hold a freshly-written parquet and
+# fail that delete with WinError 32 (observed on real SA re-runs). Such locks
+# clear in seconds — retry with backoff; a persistent lock still raises.
+@retry(
+    retry=retry_if_exception_type(PermissionError),
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=0.5, max=8),
+    reraise=True,
+)
+def _write_dataset_with_retry(*args, **kwargs) -> None:
+    ds.write_dataset(*args, **kwargs)
+
+
 def write_silver(fragments: list[Fragment], out_dir: Path) -> dict[str, int]:
     """Write fragments to hive-partitioned Parquet; returns rows per table.
 
@@ -529,7 +544,7 @@ def write_silver(fragments: list[Fragment], out_dir: Path) -> dict[str, int]:
         schema = SCHEMAS[table]
         normalized = [{name: row.get(name) for name in schema.names} for row in rows]
         arrow_table = pa.Table.from_pylist(normalized, schema=schema)
-        ds.write_dataset(
+        _write_dataset_with_retry(
             arrow_table,
             base_dir=str(Path(out_dir) / table),
             format="parquet",
