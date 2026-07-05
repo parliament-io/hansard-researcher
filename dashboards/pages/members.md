@@ -91,4 +91,4 @@ where gave_first_speech
 order by first_sitting desc
 ```
 
-<DataTable data={first_speeches} title="First speeches" />
+<DataTable data={first_speeches} title="First speeches" emptySet=pass emptyMessage="No source-marked first speeches: the uniXML first.speech element is never populated in live payloads (131,969 sampled, all empty). Title-derived recovery (176 NSW 'first speech' subjects) is on the backlog." />
