@@ -51,7 +51,7 @@ services:
   #   docker compose --profile enrich run --rm enrich enrich embed wa
   ollama:
     image: ollama/ollama
-    profiles: [enrich, ollama]
+    profiles: [enrich, ollama, api]
     networks: [default, enrich] # default so `ollama pull` can fetch models
     ports:
       - "127.0.0.1:11434:11434"
@@ -72,7 +72,7 @@ services:
 
   qdrant:
     image: qdrant/qdrant
-    profiles: [enrich, qdrant]
+    profiles: [enrich, qdrant, api]
     networks: [default, enrich] # default is required to publish the port
     ports:
       - "127.0.0.1:6333:6333"
@@ -87,6 +87,39 @@ services:
       HANSARD_RESEARCHER_ENRICH_PROVIDER: ollama
       HANSARD_RESEARCHER_ENRICH_BASE_URL: http://ollama:11434/v1
       HANSARD_RESEARCHER_QDRANT_URL: http://qdrant:6333
+
+  # Tier 2 hosted search API (--profile api): metadata + official-source
+  # links only, never prose. Deliberately NO /data mount — the container
+  # cannot leak silver even if compromised; results are built entirely from
+  # Qdrant payloads, queries are embedded by the ollama service. This
+  # service is the VPS deployment unit: in production put Caddy/nginx (TLS,
+  # rate limits) in front of 8722 and keep Qdrant unpublished.
+  #
+  #   docker compose --profile api up -d
+  #   curl "http://localhost:8722/search?q=housing+affordability&k=5"
+  api:
+    build: .
+    image: hansard-researcher
+    profiles: [api]
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks: [default, enrich] # default only to publish the port
+    ports:
+      - "127.0.0.1:8722:8722"
+    environment:
+      HANSARD_RESEARCHER_ENRICH_PROVIDER: ollama
+      HANSARD_RESEARCHER_ENRICH_BASE_URL: http://ollama:11434/v1
+      HANSARD_RESEARCHER_QDRANT_URL: http://qdrant:6333
+    command: ["api", "--host", "0.0.0.0", "--port", "8722"]
+    depends_on:
+      - ollama
+      - qdrant
 
 networks:
   enrich:

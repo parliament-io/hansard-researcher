@@ -194,6 +194,49 @@ def test_embed_is_incremental_until_forced(data_dir):
     }
 
 
+def test_embed_reembeds_revised_content_without_force(data_dir, synthetic_fragment):
+    """The corrected-draft case: same text_ids, different words — only the
+    content signature can catch it."""
+    import copy
+
+    _run_embed(data_dir)
+    revised = copy.deepcopy(synthetic_fragment)
+    para = revised.proceedings[0].subjects[0].talkers[0].texts[0]
+    para.clean_text = "Will the minister ban widgets outright?"
+    write_silver([revised], data_dir / "silver")
+
+    assert _run_embed(data_dir) == {"days": 1, "skipped": 0, "vectors": 2}
+
+
+def test_embed_skips_rewritten_but_unchanged_silver(data_dir, synthetic_fragment):
+    """A full re-normalize rewrites every silver partition; identical content
+    must not trigger a full archive re-embed."""
+    _run_embed(data_dir)
+    write_silver([synthetic_fragment], data_dir / "silver")  # new mtime, same content
+    assert _run_embed(data_dir) == {"days": 0, "skipped": 1, "vectors": 0}
+
+
+def test_embed_baselines_legacy_partitions_without_signature(
+    data_dir, synthetic_fragment
+):
+    import copy
+
+    _run_embed(data_dir)
+    signature = next((data_dir / "enriched" / "embeddings").rglob("_signature.json"))
+    signature.unlink()  # pre-sidecar partition
+
+    # same text_id set -> assumed in sync (historical behaviour), baselined
+    assert _run_embed(data_dir) == {"days": 0, "skipped": 1, "vectors": 0}
+    assert signature.is_file()
+
+    # different text_id set (revision changed identity) -> stale
+    signature.unlink()
+    revised = copy.deepcopy(synthetic_fragment)
+    revised.fragment_id = "rev-" + synthetic_fragment.fragment_id
+    write_silver([revised], data_dir / "silver")
+    assert _run_embed(data_dir) == {"days": 1, "skipped": 0, "vectors": 2}
+
+
 def test_search_ranks_the_matching_paragraph_first(data_dir):
     _run_embed(data_dir)
     query = "Will the minister regulate widgets?"  # synthetic fixture text

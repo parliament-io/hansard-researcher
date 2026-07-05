@@ -145,6 +145,202 @@ def _parse_text(el: etree._Element, ctx: _Ctx, para_index: int) -> TextPara:
     )
 
 
+# WA/SA mark interjections as <event> inside a <text> (census 2026-07-05):
+# either a bare stub (WA "Ms X interjected.", SA "The Hon. P.F. Conlon
+# interjecting:") or the member's name with the interjected words following
+# as the text's remaining content ("<event>Mr Y</event>: How come debt has
+# grown?").
+_INTERJECTED_STUB = re.compile(
+    r"^(?P<name>.+?)\s+interject(?:ed|ing)\s*[.!:]?$", re.IGNORECASE
+)
+
+#: event kinds recorded as meeting_time_marks (meetingtimestamp is a running
+#: clock reading, not a sitting-phase mark — it only anchors ctx.time)
+_MARK_EVENT_KINDS = ("meetingopened", "meetingclosed", "meetingsuspended", "meetingresumed")
+
+# SA stage directions are kindless, timeless events (census 2026-07-05:
+# 2,516, none with tail words). Suspensions and committee openings carry a
+# 24h clock reading in the label — SA's only in-body clock signal; the rest
+# (quorum formed, member withdrawn, gallery disturbance) stay verbatim.
+_SUSPENDED_LABEL = re.compile(
+    r"^\[?sitting suspended from (\d{1,2})[:.](\d{2}) to (\d{1,2})[:.](\d{2})\]?\.?$",
+    re.IGNORECASE,
+)
+_COMMITTEE_MET_LABEL = re.compile(r"^the committee met at (\d{1,2})[:.](\d{2})\.?$", re.IGNORECASE)
+
+
+def _text_outside_events(el: etree._Element, events: list[etree._Element]) -> str:
+    """The text content of ``el`` excluding the events' own labels.
+
+    Subtree-aware: WA nests some events inside <item> rather than directly
+    under the <text>.
+    """
+    exclude = set(events)
+    parts: list[str] = []
+
+    def walk(node: etree._Element) -> None:
+        if node in exclude:
+            parts.append(node.tail or "")
+            return
+        parts.append(node.text or "")
+        for child in node:
+            walk(child)
+        if node is not el:
+            parts.append(node.tail or "")
+
+    walk(el)
+    return "".join(parts)
+
+
+def _parse_interjection_event(
+    text_el: etree._Element, events: list[etree._Element], ctx: _Ctx
+) -> Talker:
+    """A source-marked interjection: the event carries the member identity.
+
+    The interjected words (when quoted) are the host text's content outside
+    the event label; a bare stub keeps its sentence as the paragraph so the
+    verbatim record survives the promotion out of the interrupted speaker.
+    WA occasionally splits one label across adjacent events ("Ms X" + " " +
+    "interjected."), so the label is reassembled from all of them and the
+    identity comes from whichever fragment carries the member id.
+    """
+    identity = next((e for e in events if e.get("id")), events[0])
+    talker = Talker(
+        document_order=ctx.next_order(),
+        member_source_id=identity.get("id"),
+        member_reference_id=identity.get("referenceid"),
+        kind=TalkerKind.INTERJECTION,
+    )
+    talker.role = _enum_or_ext(identity.get("role"), TalkerRole, talker, "role")
+
+    stamp = text_el.find("timeStamp")
+    if stamp is not None:
+        anchored = _parse_datetime(stamp.get("time"))
+        if anchored is not None:
+            ctx.time = anchored
+
+    label = _clean("".join("".join(e.itertext()) for e in events))
+    raw_words = _text_outside_events(text_el, events)
+    clean_words = _clean(raw_words).lstrip(":").strip()
+    full = _clean(f"{label} {clean_words}") if clean_words else label
+    stub = _INTERJECTED_STUB.match(full)
+    if stub:
+        # bare stub, possibly split between the label and the tail
+        talker.name = stub.group("name") or None
+        raw, clean = full, full
+    else:
+        from_label = _INTERJECTED_STUB.match(label)
+        talker.name = (from_label.group("name") if from_label else label) or None
+        raw, clean = (raw_words, clean_words) if clean_words else (label, label)
+    talker.texts.append(
+        TextPara(
+            document_order=ctx.next_order(),
+            source_id=text_el.get("id"),
+            kind=TextKind.PARAGRAPH,
+            raw_text=raw,
+            clean_text=clean,
+            para_index=0,
+            page_no=ctx.page,
+            time_anchor=ctx.time,
+            style=text_el.get("style"),
+            mapped_style=text_el.get("mappedstyle"),
+        )
+    )
+    return talker
+
+
+def _label_clock(date: dt.date, hour: str, minute: str) -> dt.datetime | None:
+    """A 24h label reading on the sitting date — naive wall-clock, the same
+    contract as AU's running-clock readings."""
+    h, m = int(hour), int(minute)
+    if h < 24 and m < 60:
+        return dt.datetime.combine(date, dt.time(h, m))
+    return None
+
+
+def _apply_clock_event(event: etree._Element, ctx: _Ctx, fragment: Fragment) -> None:
+    """Anchor the running clock from a meeting event; mark sitting phases.
+
+    WA stamps kind + @time; SA stage directions carry neither, so
+    suspensions/committee openings parse from the label. A suspension mark
+    keeps the suspension start; the clock resumes at the "to" time.
+    """
+    kind = event.get("kind") or ""
+    label = _clean("".join(event.itertext())) or None
+    if not kind:
+        suspended = _SUSPENDED_LABEL.match(label or "")
+        if suspended:
+            fragment.meeting_time_marks.append(
+                MeetingTimeMark(
+                    document_order=ctx.next_order(),
+                    kind="meetingsuspended",
+                    time=_label_clock(fragment.date, *suspended.group(1, 2)),
+                    label=label,
+                )
+            )
+            resume = _label_clock(fragment.date, *suspended.group(3, 4))
+            if resume is not None:
+                ctx.time = resume
+            return
+        met = _COMMITTEE_MET_LABEL.match(label or "")
+        if met:
+            opened = _label_clock(fragment.date, *met.group(1, 2))
+            fragment.meeting_time_marks.append(
+                MeetingTimeMark(
+                    document_order=ctx.next_order(),
+                    kind="meetingopened",
+                    time=opened,
+                    label=label,
+                )
+            )
+            if opened is not None:
+                ctx.time = opened
+            return
+        _note_unhandled(fragment, "event:<none>")
+        return
+    anchored = _parse_datetime(event.get("time"))
+    if anchored is not None:
+        ctx.time = anchored
+    if kind in _MARK_EVENT_KINDS:
+        fragment.meeting_time_marks.append(
+            MeetingTimeMark(
+                document_order=ctx.next_order(),
+                kind=kind,
+                time=anchored,
+                label=label,
+            )
+        )
+    elif kind != "meetingtimestamp":
+        _note_unhandled(fragment, f"event:{kind}")
+
+
+def _parse_text_or_event(
+    child: etree._Element,
+    ctx: _Ctx,
+    fragment: Fragment,
+    para_index: int,
+    texts: list[TextPara],
+    talkers: list[Talker] | None,
+) -> int:
+    """Parse a <text>, promoting a source-marked <event> child when present.
+
+    Returns the next para_index. Interjection events become talkers with
+    kind=interjection (source markup, not inference); meeting* events anchor
+    the running clock, with sitting-phase kinds landing in
+    meeting_time_marks. The event's paragraph is kept verbatim except for
+    interjections, whose text moves to the new talker — leaving it would
+    keep the words misattributed to the interrupted speaker.
+    """
+    events = child.findall(".//event")  # some WA events nest inside <item>
+    if events:
+        if (events[0].get("kind") or "") == "interjection" and talkers is not None:
+            talkers.append(_parse_interjection_event(child, events, ctx))
+            return para_index
+        _apply_clock_event(events[0], ctx, fragment)
+    texts.append(_parse_text(child, ctx, para_index))
+    return para_index + 1
+
+
 def _parse_bookmark(el: etree._Element, ctx: _Ctx, para_index: int) -> TextPara:
     raw = "".join(el.itertext()) or (el.get("name") or "")
     return TextPara(
@@ -159,7 +355,14 @@ def _parse_bookmark(el: etree._Element, ctx: _Ctx, para_index: int) -> TextPara:
     )
 
 
-def _parse_talker(el: etree._Element, ctx: _Ctx, fragment: Fragment) -> Talker:
+def _parse_talker(el: etree._Element, ctx: _Ctx, fragment: Fragment) -> list[Talker]:
+    """Parse a <talker> into 1+ talkers.
+
+    Interjection events inside the turn's texts become sibling talkers (the
+    same shape as AU's nested <interjection>), so document order reflects
+    the actual flow of the exchange.
+    """
+    siblings: list[Talker] = []
     talker = Talker(
         document_order=ctx.next_order(),
         uid=el.get("uid"),
@@ -198,8 +401,9 @@ def _parse_talker(el: etree._Element, ctx: _Ctx, fragment: Fragment) -> Talker:
         elif tag == "page":
             ctx.page = child.get("num")
         elif tag == "text":
-            talker.texts.append(_parse_text(child, ctx, para_index))
-            para_index += 1
+            para_index = _parse_text_or_event(
+                child, ctx, fragment, para_index, talker.texts, siblings
+            )
         elif tag == "bookmark":
             talker.texts.append(_parse_bookmark(child, ctx, para_index))
             para_index += 1
@@ -226,7 +430,7 @@ def _parse_talker(el: etree._Element, ctx: _Ctx, fragment: Fragment) -> Talker:
             pass  # metadata/attachments not needed for Tier 1
         else:
             _note_unhandled(fragment, f"talker/{tag}")
-    return talker
+    return [talker, *siblings]
 
 
 # historic (pre-2026) SA/WA divisions are presentational: counts as
@@ -302,7 +506,7 @@ def _parse_division(el: etree._Element, ctx: _Ctx, fragment: Fragment) -> Divisi
             division.texts.append(text)
             para_index += 1
         elif tag == "talker":
-            division.talkers.append(_parse_talker(child, ctx, fragment))
+            division.talkers.extend(_parse_talker(child, ctx, fragment))
         elif tag == "ayesCount":
             division.ayes_count = _count_of(child)
         elif tag == "noesCount":
@@ -366,13 +570,14 @@ def _parse_container_children(
         elif tag == "page":
             ctx.page = child.get("num")
         elif tag == "text":
-            node.texts.append(_parse_text(child, ctx, para_index))
-            para_index += 1
+            para_index = _parse_text_or_event(
+                child, ctx, fragment, para_index, node.texts, node.talkers
+            )
         elif tag == "bookmark":
             node.texts.append(_parse_bookmark(child, ctx, para_index))
             para_index += 1
         elif tag == "talker":
-            node.talkers.append(_parse_talker(child, ctx, fragment))
+            node.talkers.extend(_parse_talker(child, ctx, fragment))
         elif tag == "division":
             node.divisions.append(_parse_division(child, ctx, fragment))
         elif tag == "clause" and allow_clauses:
@@ -412,13 +617,14 @@ def _parse_subject(el: etree._Element, ctx: _Ctx, fragment: Fragment) -> Subject
         elif tag == "page":
             ctx.page = child.get("num")
         elif tag == "text":
-            subject.texts.append(_parse_text(child, ctx, para_index))
-            para_index += 1
+            para_index = _parse_text_or_event(
+                child, ctx, fragment, para_index, subject.texts, subject.talkers
+            )
         elif tag == "bookmark":
             subject.texts.append(_parse_bookmark(child, ctx, para_index))
             para_index += 1
         elif tag == "talker":
-            subject.talkers.append(_parse_talker(child, ctx, fragment))
+            subject.talkers.extend(_parse_talker(child, ctx, fragment))
         elif tag == "division":
             subject.divisions.append(_parse_division(child, ctx, fragment))
         elif tag == "subproceeding":
@@ -453,10 +659,11 @@ def _parse_proceeding(el: etree._Element, ctx: _Ctx, fragment: Fragment) -> Proc
         elif tag == "page":
             ctx.page = child.get("num")
         elif tag == "text":
-            proceeding.texts.append(_parse_text(child, ctx, para_index))
-            para_index += 1
+            para_index = _parse_text_or_event(
+                child, ctx, fragment, para_index, proceeding.texts, proceeding.talkers
+            )
         elif tag == "talker":
-            proceeding.talkers.append(_parse_talker(child, ctx, fragment))
+            proceeding.talkers.extend(_parse_talker(child, ctx, fragment))
         elif tag == "subject":
             proceeding.subjects.append(_parse_subject(child, ctx, fragment))
         else:
@@ -551,8 +758,11 @@ def parse_extract(
         elif tag == "proceeding":
             fragment.proceedings.append(_parse_proceeding(child, ctx, fragment))
         elif tag == "text":
-            fragment.texts.append(_parse_text(child, ctx, para_index))
-            para_index += 1
+            # no talker list at fragment level: a root interjection (never
+            # observed) would stay a plain paragraph; clock events still anchor
+            para_index = _parse_text_or_event(
+                child, ctx, fragment, para_index, fragment.texts, None
+            )
         elif tag == "attendance":
             for att in child.findall("attendee"):
                 fragment.attendees.append(

@@ -261,6 +261,29 @@ def cmd_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_api(args: argparse.Namespace) -> int:
+    from hansard_researcher.enrich.providers import ProviderError
+
+    try:
+        import uvicorn
+
+        from hansard_researcher.api import build_app
+    except ImportError:
+        print(
+            "the search API needs the 'api' extra — install with: "
+            "uv sync --extra api  (or: pip install 'hansard-researcher[api]')",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        app = build_app(provider=args.provider, qdrant_url=args.qdrant_url)
+    except ProviderError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    uvicorn.run(app, host=args.host, port=args.port)
+    return 0
+
+
 def cmd_mcp(args: argparse.Namespace) -> int:
     from hansard_researcher.mcp_server import build_server
 
@@ -431,7 +454,8 @@ def cmd_enrich_prune(args: argparse.Namespace) -> int:
     print(
         f"[{args.jurisdiction}] pruned {collection_name(config.embed_model)!r}: "
         f"{stats['points_deleted']:,} orphan point(s) of {stats['points_checked']:,} "
-        f"checked, {stats['partitions_removed']} dead embeddings partition(s)"
+        f"checked, {stats['partitions_removed']} dead embeddings partition(s), "
+        f"{stats['theme_partitions_removed']} dead themes partition(s)"
     )
     return 0
 
@@ -489,6 +513,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
+    def _provider_arg(sp: argparse.ArgumentParser) -> None:
+        from hansard_researcher.enrich.providers import PRESETS
+
+        sp.add_argument(
+            "--provider",
+            choices=[*PRESETS, "custom"],
+            help="preset (local server or BYO-key endpoint); "
+            "HANSARD_RESEARCHER_ENRICH_* env vars override/extend",
+        )
+
     p = sub.add_parser("sources", help="list jurisdictions, adapter status and sources")
     p.set_defaults(func=cmd_sources)
 
@@ -538,6 +572,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_db)
 
     p = sub.add_parser(
+        "api",
+        help="serve the hosted search API (Tier 2): read-only semantic search "
+        "returning metadata + official links, never prose",
+    )
+    p.add_argument("--host", default="127.0.0.1", help="bind address (keep localhost; TLS/rate limits belong in the front proxy)")
+    p.add_argument("--port", type=int, default=8722)
+    _provider_arg(p)
+    p.add_argument(
+        "--qdrant-url",
+        help="Qdrant base URL (default: HANSARD_RESEARCHER_QDRANT_URL or http://localhost:6333)",
+    )
+    p.set_defaults(func=cmd_api)
+
+    p = sub.add_parser(
         "mcp",
         help="run the MCP server (stdio) exposing the local archive to AI agents",
     )
@@ -580,16 +628,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional Tier 3: embeddings + semantic search (BYO provider, never required)",
     )
     esub = p.add_subparsers(dest="enrich_command", required=True)
-
-    def _provider_arg(sp: argparse.ArgumentParser) -> None:
-        from hansard_researcher.enrich.providers import PRESETS
-
-        sp.add_argument(
-            "--provider",
-            choices=[*PRESETS, "custom"],
-            help="preset (local server or BYO-key endpoint); "
-            "HANSARD_RESEARCHER_ENRICH_* env vars override/extend",
-        )
 
     pe = esub.add_parser("embed", help="silver paragraphs -> embeddings (data/enriched)")
     pe.add_argument("jurisdiction", choices=[j.value for j in Jurisdiction])

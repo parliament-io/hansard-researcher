@@ -29,6 +29,7 @@ class FakeQdrant:
         self.collections: dict[str, dict] = {}
         self.points: dict[str, dict[str, dict]] = {}
         self.threshold_updates: list[int] = []
+        self.payload_indexes: list[str] = []
         self.fail_upserts = False
 
     def handler(self, request: httpx.Request) -> httpx.Response:
@@ -45,6 +46,9 @@ class FakeQdrant:
             self.collections[name] = json.loads(request.content)["vectors"]
             self.points[name] = {}
             return httpx.Response(200, json={"result": True})
+        if request.method == "PUT" and parts[2:] == ["index"]:
+            self.payload_indexes.append(json.loads(request.content)["field_name"])
+            return httpx.Response(200, json={"result": {"status": "acknowledged"}})
         if request.method == "PATCH" and len(parts) == 2:
             body = json.loads(request.content)
             self.threshold_updates.append(body["optimizers_config"]["indexing_threshold"])
@@ -133,19 +137,116 @@ def test_index_embeddings_upserts_all_vectors(data_dir, qdrant):
     assert stats == {"points": 2, "created": 1}
     name = collection_name("fake/embed-v1")
     assert qdrant.collections[name] == {"size": FakeEmbedder.dim, "distance": "Cosine"}
-    point = next(iter(qdrant.points[name].values()))
-    # licensing invariant: join keys only — no Hansard prose enters Qdrant
-    assert set(point["payload"]) == {
-        "jurisdiction", "date", "house", "subject_id", "talker_id", "model",
+    by_speaker = {
+        p["payload"]["speaker"]: p["payload"] for p in qdrant.points[name].values()
     }
+    question = by_speaker["Ms Example"]
+    # licensing invariant: join keys + citation metadata — never body text
+    # (nulls are dropped: extract_index/source_url/subproceeding/committee
+    # are unset in the fixture)
+    assert set(question) == {
+        "jurisdiction", "date", "house", "subject_id", "talker_id", "model",
+        "subject_uid", "subject_name", "proceeding_name", "bill_names",
+        "speaker", "party", "party_abbreviation", "electorate", "role",
+        "talker_kind", "text_kind", "page_no", "time_anchor",
+        "parliament_num", "session_num", "review_stage",
+    }
+    assert question["subject_name"] == "Widget Regulation"
+    assert question["subject_uid"] == "s1"
+    assert question["proceeding_name"] == "Questions Without Notice"
+    assert question["bill_names"] == ["Widget Regulation Bill 2026"]
+    assert question["party"] == "Example Party"
+    assert question["party_abbreviation"] == "EX"
+    assert question["electorate"] == "Testville"
+    assert question["talker_kind"] == "question"
+    assert question["page_no"] == "7"
+    assert question["time_anchor"] == "2026-03-04T06:30:00+00:00"
+    assert question["parliament_num"] == 41
+    assert question["review_stage"] == "uncorrected"
+    assert not {"clean_text", "raw_text", "text"} & set(question)
+    # structural nulls stay dropped, not stored as 'None'
+    answer = by_speaker["Mr Sample"]
+    assert answer["talker_kind"] == "answer"
+    assert answer["role"] == "minister"
+    assert not {"party", "electorate", "page_no", "time_anchor"} & set(answer)
     # bulk-load contract: HNSW building paused for the load, then restored
     assert qdrant.threshold_updates == [0, INDEXING_THRESHOLD_DEFAULT]
+    # filterable payload fields get keyword indexes (search + prune scroll)
+    assert set(qdrant.payload_indexes) == {"jurisdiction", "house", "date"}
     # re-index is an idempotent upsert, not a duplicate
     again = index_embeddings(
         data_dir, "wa", _index(qdrant), "fake/embed-v1", log=lambda *_: None
     )
     assert again["points"] == 2
     assert len(qdrant.points[name]) == 2
+
+
+def test_index_payload_survives_null_embed_time_keys(synthetic_fragment, tmp_path, qdrant):
+    """Pre-provenance embeddings slices carry NULL subject/talker/fragment ids —
+    citation payloads must come from silver via text_id, never embed-time
+    columns."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    write_silver([synthetic_fragment], tmp_path / "silver")
+    embed_texts(
+        tmp_path, "wa", FakeEmbedder(), provider="test", model="fake/embed-v1",
+        log=lambda *_: None,
+    )
+    emb_file = next((tmp_path / "enriched" / "embeddings").rglob("*.parquet"))
+    table = pq.read_table(emb_file)
+    for col in ("subject_id", "talker_id", "fragment_id"):
+        idx = table.schema.get_field_index(col)
+        table = table.set_column(idx, col, pa.nulls(table.num_rows, pa.string()))
+    pq.write_table(table, emb_file)
+
+    index_embeddings(tmp_path, "wa", _index(qdrant), "fake/embed-v1", log=lambda *_: None)
+    point = next(iter(qdrant.points[collection_name("fake/embed-v1")].values()))
+    assert point["payload"]["subject_name"] == "Widget Regulation"
+    assert point["payload"]["subject_id"]  # re-derived from silver, not 'None'
+    assert point["payload"]["speaker"] in ("Ms Example", "Mr Sample")
+
+
+def test_index_joins_subproceeding_names(synthetic_fragment, tmp_path, qdrant):
+    """Text inside a bill-stage subproceeding carries the stage name; the
+    main fixture (no subproceedings table at all) covers the empty-relation
+    fallback in the same suite run."""
+    import copy
+
+    from hansard_researcher.model.canonical import Subproceeding, Talker, TextPara
+
+    fragment = copy.deepcopy(synthetic_fragment)
+    fragment.proceedings[0].subjects[0].subproceedings = [
+        Subproceeding(
+            uid="sp1",
+            name="Second Reading",
+            document_order=7,
+            talkers=[
+                Talker(
+                    uid="t3",
+                    document_order=8,
+                    name="Ms Example",
+                    texts=[
+                        TextPara(
+                            document_order=9,
+                            para_index=0,
+                            raw_text="I move that the bill be read a second time.",
+                            clean_text="I move that the bill be read a second time.",
+                        )
+                    ],
+                )
+            ],
+        )
+    ]
+    write_silver([fragment], tmp_path / "silver")
+    embed_texts(
+        tmp_path, "wa", FakeEmbedder(), provider="test", model="fake/embed-v1",
+        log=lambda *_: None,
+    )
+    index_embeddings(tmp_path, "wa", _index(qdrant), "fake/embed-v1", log=lambda *_: None)
+    payloads = [p["payload"] for p in qdrant.points[collection_name("fake/embed-v1")].values()]
+    stages = {p.get("subproceeding_name") for p in payloads}
+    assert stages == {None, "Second Reading"}  # subject-level text has no stage
 
 
 def test_index_prunes_to_requested_jurisdiction(synthetic_fragment, tmp_path, qdrant):
@@ -207,28 +308,49 @@ def test_prune_deletes_orphans_from_revised_days(data_dir, synthetic_fragment, q
     assert len(qdrant.points[name]) == 2
 
 
-def test_prune_drops_embeddings_partitions_without_silver(data_dir, qdrant):
+def test_prune_drops_embeddings_and_themes_partitions_without_silver(data_dir, qdrant):
     """A vanished silver partition (identity moved, repair run) kills its
-    embeddings slice too — otherwise every future index run re-seeds the
-    dead points."""
+    embeddings AND themes slices — otherwise every future index run re-seeds
+    the dead points and stale themes pollute the next aggregate."""
     import shutil
 
     model = "fake/embed-v1"
     index_embeddings(data_dir, "wa", _index(qdrant), model, log=lambda *_: None)
+    # mirror each embeddings partition as a themes partition (all model slugs
+    # are swept — themes are not tied to the Qdrant collection)
+    embeddings_jur = next(
+        (data_dir / "enriched" / "embeddings").glob("model_slug=*")
+    ) / "jurisdiction=wa"
+    themes_jur = (
+        data_dir / "enriched" / "themes" / "model_slug=embedding-other" / "jurisdiction=wa"
+    )
+    for date_dir in embeddings_jur.glob("date=*"):
+        for house_dir in date_dir.glob("house=*"):
+            target = themes_jur / date_dir.name / house_dir.name
+            target.mkdir(parents=True)
+            (target / "part-0.parquet").write_bytes(b"stub")
+
     shutil.rmtree(data_dir / "silver" / "texts" / "jurisdiction=wa")
 
     stats = prune_index(data_dir, "wa", _index(qdrant), model, log=lambda *_: None)
     assert stats["partitions_removed"] == 1
+    assert stats["theme_partitions_removed"] == 1
     assert stats["points_deleted"] == 2
     assert qdrant.points[collection_name(model)] == {}
     assert not any((data_dir / "enriched" / "embeddings").rglob("*.parquet"))
+    assert not any((data_dir / "enriched" / "themes").rglob("*.parquet"))
 
 
 def test_prune_without_collection_is_a_noop(data_dir, qdrant):
     stats = prune_index(
         data_dir, "wa", _index(qdrant), "fake/embed-v1", log=lambda *_: None
     )
-    assert stats == {"partitions_removed": 0, "points_checked": 0, "points_deleted": 0}
+    assert stats == {
+        "partitions_removed": 0,
+        "theme_partitions_removed": 0,
+        "points_checked": 0,
+        "points_deleted": 0,
+    }
 
 
 def test_index_without_embeddings_is_a_clear_error(tmp_path, qdrant):

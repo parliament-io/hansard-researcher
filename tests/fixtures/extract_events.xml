@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--Synthetic test fixture. No real Hansard text (see LICENSES-DATA.md).
+    Exercises the <event> forms found in the 2026-07-05 WA census: quoted +
+    stub interjections inside a talker, an interjection at subject level,
+    and the meeting clock events.-->
+<hansard id="ev-1" schemaVersion="4.0">
+  <name>Synthetic Assembly</name>
+  <date date="2026-03-04T09:00:00+08:00" />
+  <house>Synthetic Assembly</house>
+  <startTime time="2026-03-04T09:00:00+08:00" />
+  <proceeding uid="proc-1">
+    <subject uid="subj-1">
+      <name>Widget Regulation</name>
+      <text id="tx-1"><event kind="meetingopened" time="2026-03-04T09:00:00+08:00">The Synthetic Assembly met at 9:00 am.</event></text>
+      <talker role="minister" id="m-200" referenceid="ref-200" uid="talk-1" kind="speech">
+        <name>Mr Sample</name>
+        <text id="tx-2">Widgets are thriving.</text>
+        <text id="tx-3"><event kind="interjection" role="member" id="m-100" referenceid="ref-100">Ms Example</event>: Under whose policy?</text>
+        <text id="tx-4"><event kind="interjection" role="member" id="m-100" referenceid="ref-100">Ms Example interjected.</event></text>
+        <text id="tx-5"><event kind="meetingtimestamp" time="2026-03-04T09:35:00+08:00">9:35:00 AM</event></text>
+        <text id="tx-6">Order restored, widgets remain excellent.</text>
+      </talker>
+      <text id="tx-7"><event kind="interjection" role="member" id="m-300" referenceid="ref-300">Mr Third interjected.</event></text>
+      <text id="tx-8"><event kind="meetingsuspended" time="2026-03-04T12:00:00+08:00">Sitting suspended from 12:00 to 2:00 pm</event></text>
+      <text id="tx-9"><event kind="somethingnew">Mystery.</event></text>
+      <text id="tx-10"><event kind="interjection" role="member" id="9">The Hon. P.F. Conlon interjecting:</event></text>
+      <text id="tx-11"><item><event kind="interjection">Ms Split</event><event kind="interjection" role="member" id="m-500"> </event>interjected.</item></text>
+      <text id="tx-12"><item><event kind="interjection" role="member" id="m-400">Hon Nested Quoted</event>: Not likely!</item></text>
+      <text id="tx-13"><event>[Sitting suspended from 12:47 to 14:00]</event></text>
+      <text id="tx-14">After the break.</text>
+      <text id="tx-15"><event>A quorum having been formed:</event></text>
+      <text id="tx-16"><event>The committee met at 09:12</event></text>
+    </subject>
+  </proceeding>
+</hansard>

@@ -27,6 +27,11 @@ local = ["sentence-transformers>=3.0"]
 mcp = [
     "mcp>=1.0",
 ]
+# Tier 2 hosted search API (metadata + official-source links only, never prose)
+api = [
+    "fastapi>=0.110",
+    "uvicorn>=0.30",
+]
 
 [project.scripts]
 hansard-researcher = "hansard_researcher.cli:main"
@@ -34,6 +39,7 @@ hansard-researcher = "hansard_researcher.cli:main"
 [dependency-groups]
 dev = [
     "mcp>=1.0",
+    "fastapi>=0.110",
     "pytest>=8.0",
     "ruff>=0.5",
 ]

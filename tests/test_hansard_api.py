@@ -13,7 +13,9 @@ EVENTS_2026 = {
     "events": [
         {
             "houseName": "Synthetic Assembly",
-            "houseCode": "lh",
+            # uppercase on purpose: the live calendar occasionally emits it
+            # (SA 2022-09-06 "UH") — discover must canonicalize to lowercase
+            "houseCode": "LH",
             "date": "2026-03-04",
             "pdfUrl": "https://example.invalid/pdf",
             "subjectCount": 2,

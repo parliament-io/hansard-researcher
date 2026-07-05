@@ -8,15 +8,17 @@ ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never
 # dependency layer first so code edits don't re-resolve the lock
+# (--extra api: fastapi+uvicorn for the Tier 2 search service — small; the
+# heavy 'local' extra with torch is deliberately NOT installed)
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --no-dev
+    uv sync --frozen --no-install-project --no-dev --extra api
 COPY README.md LICENSE ./
 COPY src ./src
 # --no-editable: install the package into the venv itself so the runtime
 # stage needs only /app/.venv
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable
+    uv sync --frozen --no-dev --no-editable --extra api
 
 FROM python:3.12-slim-bookworm
 RUN useradd --create-home --uid 1000 hansard \

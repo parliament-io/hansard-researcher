@@ -12,11 +12,19 @@ one model atomically replaces exactly that slice and never touches another
 model's vectors. ``text_id`` is deterministic from silver, so
 (``model``, ``text_id``) is a stable dedup key — switching providers or
 re-running stays coherent.
+
+Incremental runs are content-aware: each embedded partition carries a
+``_signature.json`` sidecar (the ``_`` prefix hides it from parquet dataset
+discovery) hashing the embeddable (text_id, clean_text) pairs. A revised
+house-day (draft -> corrected) re-embeds without ``--force``; a silver
+rewrite with identical content (full re-normalize) stays skipped.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -77,6 +85,75 @@ class HouseDay:
     path: Path
 
 
+_SIGNATURE_NAME = "_signature.json"
+
+
+def _embeddable(silver_day_dir: Path) -> list[tuple[str, str]]:
+    """Sorted (text_id, clean_text) pairs a run of embed_day would produce."""
+    table = ds.dataset(silver_day_dir, format="parquet").to_table(
+        columns=["text_id", "clean_text"]
+    )
+    return sorted(
+        (row["text_id"], row["clean_text"])
+        for row in table.to_pylist()
+        if row["clean_text"] and row["clean_text"].strip()
+    )
+
+
+def _signature_of(pairs: list[tuple[str, str]]) -> str:
+    digest = hashlib.sha256()
+    for text_id, clean_text in pairs:
+        digest.update(text_id.encode())
+        digest.update(b"\x00")
+        digest.update(clean_text.encode())
+        digest.update(b"\x00")
+    return digest.hexdigest()
+
+
+def _write_signature(partition: Path, signature: str, texts: int) -> None:
+    (partition / _SIGNATURE_NAME).write_text(
+        json.dumps({"version": 1, "sha256": signature, "texts": texts}),
+        encoding="utf-8",
+    )
+
+
+def _is_fresh(silver_day_dir: Path, partition: Path) -> bool:
+    """True when the existing embeddings partition still matches silver.
+
+    mtime is only a fast-path gate, never the decider: a full re-normalize
+    rewrites every silver partition with mostly identical content, and an
+    mtime-only check would answer that with a full archive re-embed. When
+    silver is newer, the stored content signature decides; a signature-less
+    partition (pre-dating sidecars) falls back to comparing text_id sets —
+    equal sets are baselined as in-sync (matching the historical skip
+    behaviour), different sets mean the day was revised.
+    """
+    signature_path = partition / _SIGNATURE_NAME
+    silver_mtime = max(
+        (f.stat().st_mtime for f in silver_day_dir.glob("*.parquet")), default=0.0
+    )
+    if signature_path.is_file() and signature_path.stat().st_mtime >= silver_mtime:
+        return True
+    pairs = _embeddable(silver_day_dir)
+    signature = _signature_of(pairs)
+    if signature_path.is_file():
+        stored = json.loads(signature_path.read_text(encoding="utf-8"))["sha256"]
+        if stored == signature:
+            signature_path.touch()  # re-arm the mtime fast path
+            return True
+        return False
+    embedded_ids = set(
+        ds.dataset(partition, format="parquet")
+        .to_table(columns=["text_id"])
+        .column("text_id")
+        .to_pylist()
+    )
+    if embedded_ids == {text_id for text_id, _ in pairs}:
+        _write_signature(partition, signature, len(pairs))
+        return True
+    return False
+
+
 def iter_house_days(
     texts_dir: Path,
     jurisdiction: str,
@@ -111,6 +188,12 @@ def embed_texts(
     texts_dir = data_dir / "silver" / "texts"
     out_dir = data_dir / "enriched" / "embeddings"
     slug = model_slug(model)
+
+    def partition_for(day: HouseDay) -> Path:
+        return (
+            out_dir / f"model_slug={slug}" / day.path.parent.parent.name
+            / day.path.parent.name / day.path.name
+        )
 
     def embed_day(day: HouseDay) -> int:
         """Embed one house-day; returns vectors written (0 = no text)."""
@@ -153,17 +236,16 @@ def embed_texts(
             existing_data_behavior="delete_matching",
             basename_template="part-{i}.parquet",
         )
+        pairs = sorted((row["text_id"], row["clean_text"]) for row in rows)
+        _write_signature(partition_for(day), _signature_of(pairs), len(pairs))
         log(f"  {day.date} {day.house}: {len(out_rows)} vectors")
         return len(out_rows)
 
     days = vectors = skipped = 0
     pending: list[HouseDay] = []
     for day in iter_house_days(texts_dir, jurisdiction, start, end):
-        partition = (
-            out_dir / f"model_slug={slug}" / day.path.parent.parent.name
-            / day.path.parent.name / day.path.name
-        )
-        if partition.exists() and not force:
+        partition = partition_for(day)
+        if partition.is_dir() and not force and _is_fresh(day.path, partition):
             skipped += 1
         else:
             pending.append(day)

@@ -5,6 +5,7 @@ import datetime as dt
 import pytest
 
 from hansard_researcher.model.canonical import (
+    BillRef,
     Division,
     DivisionResult,
     DivisionVote,
@@ -47,6 +48,9 @@ def synthetic_fragment() -> Fragment:
                         uid="s1",
                         name="Widget Regulation",
                         document_order=1,
+                        bill_refs=[
+                            BillRef(uid="b1", name="Widget Regulation Bill 2026")
+                        ],
                         talkers=[
                             Talker(
                                 uid="t1",
@@ -57,12 +61,17 @@ def synthetic_fragment() -> Fragment:
                                 kind=TalkerKind.QUESTION,
                                 party="Example Party",
                                 electorate="Testville",
+                                extensions={"party_abbreviation": "EX"},
                                 texts=[
                                     TextPara(
                                         document_order=3,
                                         para_index=0,
                                         raw_text="Will the minister regulate widgets?",
                                         clean_text="Will the minister regulate widgets?",
+                                        page_no="7",
+                                        time_anchor=dt.datetime(
+                                            2026, 3, 4, 6, 30, tzinfo=dt.UTC
+                                        ),
                                     )
                                 ],
                             ),

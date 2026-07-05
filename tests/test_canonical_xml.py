@@ -142,6 +142,148 @@ def test_leading_comment_is_tolerated():
     parse_extract(content, jurisdiction=Jurisdiction.WA)
 
 
+@pytest.fixture
+def event_fragment():
+    return parse_extract(
+        (FIXTURES / "extract_events.xml").read_bytes(),
+        jurisdiction=Jurisdiction.WA,
+        extract_index=1,
+    )
+
+
+def test_interjection_event_becomes_sibling_talker(event_fragment):
+    subject = event_fragment.proceedings[0].subjects[0]
+    host, quoted, stub = subject.talkers[:3]
+    assert host.name == "Mr Sample"
+    assert quoted.kind is TalkerKind.INTERJECTION
+    assert quoted.role is TalkerRole.MEMBER
+    assert quoted.member_source_id == "m-100"
+    assert quoted.member_reference_id == "ref-100"
+    assert quoted.name == "Ms Example"
+    assert "kind_inferred" not in quoted.extensions  # source markup, not inference
+    # quoted words move to the interjector; leading ": " separator stripped
+    assert quoted.texts[0].clean_text == "Under whose policy?"
+    assert quoted.texts[0].source_id == "tx-3"
+    # the interrupted speaker no longer carries the interjection paragraphs
+    assert [t.source_id for t in host.texts] == ["tx-2", "tx-5", "tx-6"]
+
+
+def test_stub_interjection_keeps_verbatim_sentence(event_fragment):
+    subject = event_fragment.proceedings[0].subjects[0]
+    stub = subject.talkers[2]
+    assert stub.kind is TalkerKind.INTERJECTION
+    assert stub.name == "Ms Example"
+    assert stub.texts[0].clean_text == "Ms Example interjected."
+
+
+def test_subject_level_interjection_event(event_fragment):
+    subject = event_fragment.proceedings[0].subjects[0]
+    outside = subject.talkers[3]
+    assert outside.kind is TalkerKind.INTERJECTION
+    assert outside.member_source_id == "m-300"
+    assert outside.name == "Mr Third"
+
+
+def test_sa_interjecting_label_form(event_fragment):
+    """SA labels read "X interjecting:" (census 2026-07-05) — the name must
+    still parse out and the trailing colon must not survive into it."""
+    subject = event_fragment.proceedings[0].subjects[0]
+    sa_form = subject.talkers[4]
+    assert sa_form.kind is TalkerKind.INTERJECTION
+    assert sa_form.member_source_id == "9"
+    assert sa_form.name == "The Hon. P.F. Conlon"
+    assert sa_form.texts[0].clean_text == "The Hon. P.F. Conlon interjecting:"
+
+
+def test_interjection_document_order_reflects_flow(event_fragment):
+    subject = event_fragment.proceedings[0].subjects[0]
+    host, quoted = subject.talkers[0], subject.talkers[1]
+    before = next(t for t in host.texts if t.source_id == "tx-2")
+    after = next(t for t in host.texts if t.source_id == "tx-6")
+    assert before.document_order < quoted.document_order < after.document_order
+
+
+def test_meetingtimestamp_anchors_running_clock(event_fragment):
+    subject = event_fragment.proceedings[0].subjects[0]
+    host = subject.talkers[0]
+    label = next(t for t in host.texts if t.source_id == "tx-5")
+    resumed = next(t for t in host.texts if t.source_id == "tx-6")
+    # the label paragraph is kept verbatim and both anchor to the event time
+    assert label.clean_text == "9:35:00 AM"
+    assert label.time_anchor == dt.datetime.fromisoformat("2026-03-04T09:35:00+08:00")
+    assert resumed.time_anchor == dt.datetime.fromisoformat("2026-03-04T09:35:00+08:00")
+    # a running-clock reading is not a sitting-phase mark
+    assert all(m.kind != "meetingtimestamp" for m in event_fragment.meeting_time_marks)
+
+
+def test_meeting_phase_events_become_time_marks(event_fragment):
+    opened, suspended = (
+        [m for m in event_fragment.meeting_time_marks if m.kind == kind]
+        for kind in ("meetingopened", "meetingsuspended")
+    )
+    assert opened[0].time == dt.datetime.fromisoformat("2026-03-04T09:00:00+08:00")
+    assert opened[0].label == "The Synthetic Assembly met at 9:00 am."
+    assert suspended[0].time == dt.datetime.fromisoformat("2026-03-04T12:00:00+08:00")
+    # the announcement paragraphs stay in the verbatim record
+    subject = event_fragment.proceedings[0].subjects[0]
+    assert any(t.source_id == "tx-1" for t in subject.texts)
+    assert any(t.source_id == "tx-8" for t in subject.texts)
+
+
+def test_split_event_label_reassembles(event_fragment):
+    """WA splits some labels across adjacent events; identity comes from
+    whichever fragment carries the member id (8 texts, census 2026-07-05)."""
+    subject = event_fragment.proceedings[0].subjects[0]
+    split = subject.talkers[5]
+    assert split.kind is TalkerKind.INTERJECTION
+    assert split.name == "Ms Split"
+    assert split.member_source_id == "m-500"
+    assert split.texts[0].clean_text == "Ms Split interjected."
+
+
+def test_nested_item_event_with_words(event_fragment):
+    subject = event_fragment.proceedings[0].subjects[0]
+    nested = subject.talkers[6]
+    assert nested.kind is TalkerKind.INTERJECTION
+    assert nested.member_source_id == "m-400"
+    assert nested.name == "Hon Nested Quoted"
+    assert nested.texts[0].clean_text == "Not likely!"
+
+
+def test_sa_kindless_suspension_label(event_fragment):
+    """SA suspensions are kindless, timeless events — the label's 24h
+    readings become a mark (suspension start) and re-anchor the clock at
+    the resumption."""
+    suspended = [m for m in event_fragment.meeting_time_marks if m.kind == "meetingsuspended"]
+    assert suspended[1].time == dt.datetime(2026, 3, 4, 12, 47)
+    assert suspended[1].label == "[Sitting suspended from 12:47 to 14:00]"
+    subject = event_fragment.proceedings[0].subjects[0]
+    resumed = next(t for t in subject.texts if t.source_id == "tx-14")
+    assert resumed.time_anchor == dt.datetime(2026, 3, 4, 14, 0)
+    # the stage direction stays in the verbatim record
+    assert any(t.source_id == "tx-13" for t in subject.texts)
+
+
+def test_sa_kindless_committee_met_label(event_fragment):
+    opened = [m for m in event_fragment.meeting_time_marks if m.kind == "meetingopened"]
+    assert opened[1].time == dt.datetime(2026, 3, 4, 9, 12)
+    assert opened[1].label == "The committee met at 09:12"
+
+
+def test_kindless_stage_direction_stays_verbatim(event_fragment):
+    assert event_fragment.extensions["unhandled:event:<none>"] == "1"
+    subject = event_fragment.proceedings[0].subjects[0]
+    quorum = next(t for t in subject.texts if t.source_id == "tx-15")
+    assert quorum.clean_text == "A quorum having been formed:"
+
+
+def test_unknown_event_kind_is_noted_not_dropped(event_fragment):
+    assert event_fragment.extensions["unhandled:event:somethingnew"] == "1"
+    subject = event_fragment.proceedings[0].subjects[0]
+    mystery = next(t for t in subject.texts if t.source_id == "tx-9")
+    assert mystery.clean_text == "Mystery."
+
+
 def test_committee_volume_identity_from_name():
     """SA committee volumes carry the parent chamber in <house> and their
     identity in <name>: both volumes of one date must not collide into one

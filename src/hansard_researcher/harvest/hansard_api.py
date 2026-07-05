@@ -90,7 +90,11 @@ class HansardPublicApiAdapter(HarvestAdapter):
                 yield SittingEvent(
                     jurisdiction=self.jurisdiction,
                     date=date,
-                    house=event["houseCode"],
+                    # the calendar occasionally emits uppercase codes (SA
+                    # 2022-09-06 "UH") — canonical lowercase, or a
+                    # case-sensitive filesystem grows uh/UH twin raw dirs
+                    # whose normalize jobs collide on one silver partition
+                    house=event["houseCode"].lower(),
                     url=event.get("tocUrl"),
                     extra={
                         "houseName": event.get("houseName", ""),
