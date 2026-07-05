@@ -400,7 +400,7 @@ def cmd_enrich_index(args: argparse.Namespace) -> int:
         index = QdrantIndex(args.qdrant_url)
         stats = index_embeddings(
             args.data_dir, args.jurisdiction, index, config.embed_model,
-            batch_size=args.batch_size,
+            batch_size=args.batch_size, workers=args.workers,
         )
     except ProviderError as exc:
         print(exc, file=sys.stderr)
@@ -409,6 +409,29 @@ def cmd_enrich_index(args: argparse.Namespace) -> int:
         f"[{args.jurisdiction}] indexed {stats['points']:,} vectors into "
         f"{collection_name(config.embed_model)!r} at {index.url}"
         f"{' (collection created)' if stats['created'] else ''}"
+    )
+    return 0
+
+
+def cmd_enrich_prune(args: argparse.Namespace) -> int:
+    from hansard_researcher.enrich.providers import ProviderError, resolve_config
+    from hansard_researcher.enrich.qdrant import QdrantIndex, collection_name, prune_index
+
+    try:
+        config = resolve_config(args.provider)
+        if not config.embed_model:
+            raise ProviderError(
+                "no embedding model set — set HANSARD_RESEARCHER_ENRICH_EMBED_MODEL"
+            )
+        index = QdrantIndex(args.qdrant_url)
+        stats = prune_index(args.data_dir, args.jurisdiction, index, config.embed_model)
+    except ProviderError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    print(
+        f"[{args.jurisdiction}] pruned {collection_name(config.embed_model)!r}: "
+        f"{stats['points_deleted']:,} orphan point(s) of {stats['points_checked']:,} "
+        f"checked, {stats['partitions_removed']} dead embeddings partition(s)"
     )
     return 0
 
@@ -593,8 +616,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="Qdrant base URL (default: HANSARD_RESEARCHER_QDRANT_URL or http://localhost:6333)",
     )
     pi.add_argument("--batch-size", type=int, default=512)
+    pi.add_argument(
+        "--workers", type=int, default=4,
+        help="parallel upsert requests (batches are independent — points are "
+        "idempotent by id)",
+    )
     pi.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     pi.set_defaults(func=cmd_enrich_index)
+
+    ppr = esub.add_parser(
+        "prune",
+        help="reconcile deletions into the index: drop embeddings partitions "
+        "whose silver partition is gone, then Qdrant points whose text_id "
+        "left the embeddings (revised drafts, identity fixes) — run after "
+        "'enrich embed'",
+    )
+    ppr.add_argument("jurisdiction", choices=[j.value for j in Jurisdiction])
+    _provider_arg(ppr)
+    ppr.add_argument(
+        "--qdrant-url",
+        help="Qdrant base URL (default: HANSARD_RESEARCHER_QDRANT_URL or http://localhost:6333)",
+    )
+    ppr.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
+    ppr.set_defaults(func=cmd_enrich_prune)
 
     ps = esub.add_parser("search", help="semantic search over embedded paragraphs")
     ps.add_argument("query")
