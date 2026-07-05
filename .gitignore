@@ -20,3 +20,5 @@ schemas/*.xsd
 schemas/**/*.xsd
 schemas/*.swagger.json
 PLAN.md
+# private working notes — never tracked publicly
+backlog.md
