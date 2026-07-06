@@ -107,6 +107,8 @@ def collect_status(data_dir: Path, *, counts: bool = False) -> dict:
             {
                 "raw_days": 0,
                 "raw_documents": 0,
+                "raw_first_date": None,
+                "raw_last_date": None,
                 "silver_days": 0,
                 "silver_house_days": 0,
                 "first_date": None,
@@ -121,7 +123,10 @@ def collect_status(data_dir: Path, *, counts: bool = False) -> dict:
         raw_dates.setdefault(code, set()).add(row["date"].isoformat())
         jur(code)["raw_documents"] += row["documents"] or 0
     for code, dates in raw_dates.items():
-        jur(code)["raw_days"] = len(dates)
+        j = jur(code)
+        j["raw_days"] = len(dates)
+        j["raw_first_date"] = min(dates)
+        j["raw_last_date"] = max(dates)
 
     silver_dates: dict[str, set[str]] = {}
     total_house_days = 0

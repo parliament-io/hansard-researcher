@@ -359,6 +359,7 @@ def test_collect_status(tmp_path):
     status = collect_status(tmp_path)
     wa = status["jurisdictions"]["wa"]
     assert (wa["raw_days"], wa["raw_documents"]) == (1, 3)
+    assert wa["raw_first_date"] == wa["raw_last_date"] == "2026-03-05"
     assert (wa["silver_days"], wa["silver_house_days"]) == (1, 1)
     assert wa["first_date"] == wa["last_date"] == "2026-03-04"
     assert wa["pending_normalize_days"] == 1

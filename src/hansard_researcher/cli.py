@@ -210,10 +210,15 @@ def cmd_status(args: argparse.Namespace) -> int:
     )
     print()
     print(
-        f"  {'jur':<5} {'raw days':>8} {'silver hd':>9} {'span':<25} "
-        f"{'pending':>7}{count_cols}"
+        f"  {'jur':<5} {'raw days':>8} {'raw span':<25} {'silver hd':>9} "
+        f"{'silver span':<25} {'pending':>7}{count_cols}"
     )
     for code, j in jurisdictions.items():
+        raw_span = (
+            f"{j['raw_first_date']} .. {j['raw_last_date']}"
+            if j["raw_first_date"]
+            else "-"
+        )
         span = f"{j['first_date']} .. {j['last_date']}" if j["first_date"] else "-"
         counts = (
             f" {j['subjects']:>9,} {j['talker_turns']:>10,} "
@@ -222,8 +227,9 @@ def cmd_status(args: argparse.Namespace) -> int:
             else ""
         )
         print(
-            f"  {code:<5} {j['raw_days']:>8,} {j['silver_house_days']:>9,} "
-            f"{span:<25} {j['pending_normalize_days']:>7,}{counts}"
+            f"  {code:<5} {j['raw_days']:>8,} {raw_span:<25} "
+            f"{j['silver_house_days']:>9,} {span:<25} "
+            f"{j['pending_normalize_days']:>7,}{counts}"
         )
     print("  (silver hd = house-days; pending = harvested days awaiting normalize)")
 

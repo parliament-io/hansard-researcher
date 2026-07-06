@@ -24,6 +24,7 @@ serves a single-file search UI (``static/index.html``) at ``/``.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -60,17 +61,46 @@ def _tier(payload: dict) -> int:
 def official_url(payload: dict) -> str | None:
     """Human-facing official-source link for one hit, best available.
 
-    NSW subject uids are per-subject ``HANSARD-…`` doc ids with a stable
-    public permalink. The other jurisdictions fall back to the harvested
-    day-level source URL until their human permalink patterns are confirmed
-    (AU ParlInfo / SA / WA — backlog Tier 2).
+    Built purely from payload keys, so a parliament changing its permalink
+    format costs a code change here, never a re-index (2026-07: NSW retired
+    ``HansardResult.aspx#/docid/…`` for ``hansard-full-details?id=…&section=…``).
+
+    - nsw: day document id (tail of the harvested ToC URL) + per-subject
+      uid as the section anchor.
+    - wa/sa: the public daily page mirrors the harvest API path — swap
+      ``/api/hansard/…/toc`` for ``/daily/…/<extract_index>`` (estimates
+      committee house codes come along for free).
+    - au: day-level Hansard_Display from the harvested bid; the ``sid``
+      subject anchor looks non-deterministic (ToC clicks don't update the
+      query string) — revisit if APH ever documents it.
+
+    Anything that doesn't match falls back to the harvested source URL.
     """
+    jur = payload.get("jurisdiction")
     uid = str(payload.get("subject_uid") or "")
-    if payload.get("jurisdiction") == "nsw" and uid.startswith("HANSARD-"):
-        return (
-            "https://www.parliament.nsw.gov.au/Hansard/Pages/HansardResult.aspx"
-            f"#/docid/{uid}"
-        )
+    source_url = str(payload.get("source_url") or "")
+    if jur == "nsw" and uid.startswith("HANSARD-"):
+        doc_id = source_url.rstrip("/").rsplit("/", 1)[-1]
+        if doc_id.startswith("HANSARD-"):
+            return (
+                "https://www.parliament.nsw.gov.au/parliamentary-business/hansard"
+                f"/hansard-full-details?id={doc_id}&section={uid}"
+            )
+    elif jur in ("wa", "sa"):
+        extract = payload.get("extract_index")
+        is_toc = "/api/hansard/" in source_url and source_url.endswith("/toc")
+        if extract is not None and is_toc:
+            return (
+                source_url.replace("/api/hansard/", "/daily/").removesuffix("toc")
+                + str(extract)
+            )
+    elif jur == "au":
+        bid = re.search(r"[?&]id=(chamber/hansard[rs]/\d+/)toc", source_url)
+        if bid:
+            return (
+                "https://www.aph.gov.au/Parliamentary_Business/Hansard"
+                f"/Hansard_Display?bid={bid.group(1)}&sid=0000"
+            )
     return payload.get("source_url")
 
 

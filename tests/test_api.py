@@ -23,19 +23,59 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 
 def test_official_url_nsw_subject_permalink():
-    payload = {"jurisdiction": "nsw", "subject_uid": "HANSARD-1323879322-167240"}
+    # real pair from the 2026-06-02 sitting: the day doc id is the ToC URL
+    # tail, the subject uid becomes the section anchor
+    payload = {
+        "jurisdiction": "nsw",
+        "subject_uid": "HANSARD-1323879322-166068",
+        "source_url": "https://api.parliament.nsw.gov.au/api/hansard/search"
+        "/daily/tableofcontents/HANSARD-1323879322-166050",
+    }
     assert official_url(payload) == (
-        "https://www.parliament.nsw.gov.au/Hansard/Pages/HansardResult.aspx"
-        "#/docid/HANSARD-1323879322-167240"
+        "https://www.parliament.nsw.gov.au/parliamentary-business/hansard"
+        "/hansard-full-details?id=HANSARD-1323879322-166050"
+        "&section=HANSARD-1323879322-166068"
+    )
+
+
+def test_official_url_wa_sa_daily_page():
+    sa = {
+        "jurisdiction": "sa",
+        "extract_index": 3,
+        "source_url": "https://hansardsearch.parliament.sa.gov.au/api/hansard/lh/2026-05-07/toc",
+    }
+    assert official_url(sa) == "https://hansardsearch.parliament.sa.gov.au/daily/lh/2026-05-07/3"
+    wa = {
+        "jurisdiction": "wa",
+        "extract_index": 2,
+        "source_url": "https://www.parliament.wa.gov.au/hansard/api/hansard/lh/2026-06-18/toc",
+    }
+    assert official_url(wa) == "https://www.parliament.wa.gov.au/hansard/daily/lh/2026-06-18/2"
+
+
+def test_official_url_au_day_page():
+    payload = {
+        "jurisdiction": "au",
+        "source_url": "https://www.aph.gov.au/api/hansard/link/"
+        "?id=chamber/hansards/29228/toc&linktype=xml&fulltranscript=True",
+    }
+    assert official_url(payload) == (
+        "https://www.aph.gov.au/Parliamentary_Business/Hansard"
+        "/Hansard_Display?bid=chamber/hansards/29228/&sid=0000"
     )
 
 
 def test_official_url_falls_back_to_harvested_source():
+    # sa/wa without an extract_index cannot target a daily page
     toc = "https://hansardsearch.parliament.sa.gov.au/api/hansard/lh/2026-06-25/toc"
     assert official_url({"jurisdiction": "sa", "subject_uid": "s1", "source_url": toc}) == toc
-    # NSW uid that is not a HANSARD- doc id falls back too
+    # NSW needs both a HANSARD- subject uid and a HANSARD- ToC tail
     assert official_url({"jurisdiction": "nsw", "subject_uid": "s1"}) is None
+    assert official_url({"jurisdiction": "nsw", "subject_uid": "HANSARD-1-2"}) is None
     assert official_url({"jurisdiction": "wa"}) is None
+    # au with an unrecognized link shape keeps the harvested URL
+    other = "https://www.aph.gov.au/something/else"
+    assert official_url({"jurisdiction": "au", "source_url": other}) == other
 
 
 # --- service + HTTP surface ---------------------------------------------------

@@ -120,7 +120,9 @@ provider is incremental and coherent. Keys live only in your environment.
 
 The image holds code only; your local `data/` archive mounts at `/data`.
 The default `pipeline` service has **no network**, a read-only root
-filesystem and no capabilities — it can only read/write the data volume:
+filesystem and no capabilities — it can only read/write the data volume.
+Version tags publish the image to GHCR
+(`docker pull ghcr.io/parliament-io/hansard-researcher`), or build locally:
 
 ```bash
 docker compose build
@@ -156,6 +158,26 @@ source. See [LICENSES-DATA.md](LICENSES-DATA.md) for per-jurisdiction terms.
 gold is publishable everywhere (enforced by test — gold cubes carry no
 `raw_text`/`clean_text` columns).
 
+## Published dataset (Hugging Face)
+
+The open-data artifacts publish to
+[`parliament-data/hansard-embeddings`](https://huggingface.co/datasets/parliament-data/hansard-embeddings):
+embeddings consolidated into jurisdiction-year shards (vectors + join keys
+only), the gold cubes they join against, and optionally a Qdrant collection
+snapshot for batteries-included restore-and-search. No Hansard prose ships —
+hydrating text means running the harvester yourself (the dataset card
+documents the join contract).
+
+[`scripts/hf_publish.py`](scripts/hf_publish.py) does the work: staging,
+join-contract guard (aborts if `subject_id` coverage drops below the
+measured-healthy floor), and a resumable `upload_large_folder` — re-running
+it is the incremental daily publish.
+
+```bash
+uv run scripts/hf_publish.py --dry-run   # stage + report, no upload
+uv run scripts/hf_publish.py             # stage + upload (HF_TOKEN)
+```
+
 ## Layout
 
 ```
@@ -175,9 +197,11 @@ src/hansard_researcher/
   cli.py          harvest | normalize | aggregate | db | reference | enrich |
                   sources | schema
 samples/          redistributable source samples (federal CC BY-NC-ND verbatim)
+scripts/          hf_publish.py — stage + publish open-data artifacts to Hugging Face
 dashboards/       Evidence.dev site (gold-only)
 data/             local only, gitignored: raw/ silver/ gold/ enriched/ + logs
 Dockerfile        pipeline image (code only; data mounts at /data)
 compose.yaml      sandboxed services: pipeline (no network), harvest, ollama profile
-.github/workflows publish.yml (daily pipeline + Pages), ci.yml (lint/test/schema-drift)
+.github/workflows publish.yml (daily pipeline + Pages), ci.yml (lint/test/
+                  schema-drift), release.yml (GHCR image on version tags)
 ```
