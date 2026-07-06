@@ -125,11 +125,16 @@ Version tags publish the image to GHCR
 (`docker pull ghcr.io/parliament-io/hansard-researcher`), or build locally:
 
 ```bash
-docker compose build
+docker compose pull pipeline   # use the published image (no toolchain needed)
+docker compose build           # …or build locally; same image name either way
 docker compose run --rm pipeline normalize wa --workers 8   # fully offline
 docker compose run --rm pipeline aggregate
 docker compose run --rm harvest harvest wa --start 2026-06-01 --end 2026-07-04
 ```
+
+Pin a release with `HANSARD_RESEARCHER_TAG=0.0.1 docker compose pull` —
+otherwise `latest` is used. Note compose prefers building when no local
+image exists, so run `pull` explicitly to skip the toolchain.
 
 An optional `--profile ollama` adds a local model server on an
 internal-only network, so Tier 3 runs with Hansard text never leaving the

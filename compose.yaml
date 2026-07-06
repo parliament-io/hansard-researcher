@@ -15,7 +15,10 @@
 
 x-base: &base
   build: .
-  image: hansard-researcher
+  # published on version tags (release.yml); local builds get the same name so
+  # you test what ships. Consumers: `docker compose pull pipeline` skips the
+  # build; pin a release with HANSARD_RESEARCHER_TAG=0.0.1
+  image: ghcr.io/parliament-io/hansard-researcher:${HANSARD_RESEARCHER_TAG:-latest}
   init: true # reap normalize's worker processes on Ctrl+C
   volumes:
     - ./data:/data
@@ -99,7 +102,7 @@ services:
   #   curl "http://localhost:8722/search?q=housing+affordability&k=5"
   api:
     build: .
-    image: hansard-researcher
+    image: ghcr.io/parliament-io/hansard-researcher:${HANSARD_RESEARCHER_TAG:-latest}
     profiles: [api]
     init: true
     read_only: true
