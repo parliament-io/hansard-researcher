@@ -38,6 +38,24 @@ MAX_K = 50
 MAX_QUERY_CHARS = 1_000
 STATIC_DIR = Path(__file__).parent / "static"
 
+# default ranking: named substantive turns outrank other spoken turns, which
+# outrank structural text. Short queries cosine-match subject headings almost
+# perfectly (they ARE the query restated), drowning out what was actually
+# said — tiering keeps "who said what" results first. rank=score disables.
+RANKINGS = ("speakers", "score")
+_SUBSTANTIVE_KINDS = ("speech", "question", "answer")
+_RANK_FETCH_CAP = 200
+
+
+def _tier(payload: dict) -> int:
+    """0 = named substantive turn, 1 = other spoken turn (interjection,
+    untyped follow-on), 2 = structural text (headings, procedural lines)."""
+    if payload.get("talker_kind") in _SUBSTANTIVE_KINDS:
+        return 0
+    if payload.get("speaker"):
+        return 1
+    return 2
+
 
 def official_url(payload: dict) -> str | None:
     """Human-facing official-source link for one hit, best available.
@@ -84,7 +102,12 @@ class SearchService:
         )
 
     def search(
-        self, q: str, *, k: int = 10, jurisdiction: str | None = None
+        self,
+        q: str,
+        *,
+        k: int = 10,
+        jurisdiction: str | None = None,
+        rank: str = "speakers",
     ) -> list[dict]:
         if not q.strip():
             raise ValueError("empty query")
@@ -92,10 +115,20 @@ class SearchService:
             raise ValueError(f"query too long (max {MAX_QUERY_CHARS} chars)")
         if jurisdiction is not None and jurisdiction not in JURISDICTIONS:
             raise ValueError(f"unknown jurisdiction — options: {', '.join(JURISDICTIONS)}")
+        if rank not in RANKINGS:
+            raise ValueError(f"unknown rank — options: {', '.join(RANKINGS)}")
+        k = max(1, min(k, MAX_K))
+        # over-fetch so tier-sorting has spoken-turn candidates to promote
+        fetch = k if rank == "score" else min(_RANK_FETCH_CAP, max(k * 4, 40))
         vector = self.embedder.embed([q])[0]
         results = self.index.search(
-            self.collection, vector, k=max(1, min(k, MAX_K)), jurisdiction=jurisdiction
+            self.collection, vector, k=fetch, jurisdiction=jurisdiction
         )
+        if rank == "speakers":
+            results = sorted(
+                results,
+                key=lambda r: (_tier(r.get("payload") or {}), -r["score"]),
+            )[:k]
         return [self._hit(result) for result in results]
 
     @staticmethod
@@ -138,6 +171,11 @@ class SearchService:
             "embedding_model": self.model,
             "distance": "cosine",
             "query_contract": "queries are embedded with the same model, no task prefix",
+            "ranking": (
+                "default rank=speakers: named speech/question/answer turns "
+                "first, then other spoken turns, then structural text — "
+                "rank=score for raw cosine order"
+            ),
             "results": "metadata + official-source links only — no Hansard prose",
             "hydration": (
                 "text_id/subject_id join the open-data pipeline; run the "
@@ -180,13 +218,14 @@ def build_app(
         q: str = Query(min_length=1, max_length=MAX_QUERY_CHARS),
         k: int = Query(10, ge=1, le=MAX_K),
         jurisdiction: str | None = None,
+        rank: str = "speakers",
     ) -> dict:
         try:
-            hits = service.search(q, k=k, jurisdiction=jurisdiction)
+            hits = service.search(q, k=k, jurisdiction=jurisdiction, rank=rank)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except (ProviderError, httpx.HTTPError) as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
-        return {"k": k, "jurisdiction": jurisdiction, "hits": hits}
+        return {"k": k, "jurisdiction": jurisdiction, "rank": rank, "hits": hits}
 
     return app

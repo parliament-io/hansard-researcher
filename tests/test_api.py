@@ -19,7 +19,6 @@ from test_qdrant import FakeQdrant
 fastapi = pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
-
 # --- deep links: constructed at response time, never stored ------------------
 
 
@@ -100,6 +99,78 @@ def test_search_returns_citation_metadata_never_prose(client):
     }
     # the response contains no prose fields and never echoes text back
     assert "Will the minister regulate widgets?" not in response.text
+
+
+# --- ranking: named speakers above structural text ---------------------------
+
+
+class _CraftedIndex:
+    """Stub index returning fixed results, capturing the requested k."""
+
+    def __init__(self, results):
+        self.results = results
+        self.requested_k = None
+
+    def search(self, collection, vector, *, k, jurisdiction=None):
+        self.requested_k = k
+        return self.results[:k]
+
+    def collection_exists(self, collection):
+        return True
+
+
+def _crafted_service(results):
+    return SearchService(
+        embedder=FakeEmbedder(), model=MODEL,
+        index=_CraftedIndex(results), collection=collection_name(MODEL),
+    ), results
+
+
+def _point(id_, score, **payload):
+    return {"id": id_, "score": score, "payload": payload}
+
+
+def test_rank_speakers_puts_substantive_turns_first():
+    """A heading cosine-matches a short query almost perfectly (it IS the
+    query restated); the default ranking must still lead with who said what."""
+    index_results = [
+        _point("h1", 0.99, text_kind="heading"),
+        _point("i1", 0.95, speaker="Ms Heckler", talker_kind="interjection"),
+        _point("s1", 0.90, speaker="Mr Sample", talker_kind="speech"),
+        _point("q1", 0.85, speaker="Ms Example", talker_kind="question"),
+    ]
+    service, _ = _crafted_service(index_results)
+    hits = service.search("widgets", k=4)
+    assert [h["text_id"] for h in hits] == ["s1", "q1", "i1", "h1"]
+    # within a tier, cosine order is preserved
+    assert hits[0]["score"] > hits[1]["score"]
+
+
+def test_rank_speakers_overfetches_then_trims():
+    service, _ = _crafted_service(
+        [_point(f"p{i}", 1 - i / 100, text_kind="heading") for i in range(60)]
+    )
+    hits = service.search("widgets", k=3)
+    assert service.index.requested_k >= 40  # oversampled beyond k
+    assert len(hits) == 3
+
+
+def test_rank_score_returns_raw_cosine_order():
+    index_results = [
+        _point("h1", 0.99, text_kind="heading"),
+        _point("s1", 0.90, speaker="Mr Sample", talker_kind="speech"),
+    ]
+    service, _ = _crafted_service(index_results)
+    hits = service.search("widgets", k=2, rank="score")
+    assert [h["text_id"] for h in hits] == ["h1", "s1"]
+    assert service.index.requested_k == 2  # no oversampling
+
+
+def test_rank_validation(client):
+    assert client.get("/search", params={"q": "x", "rank": "bogus"}).status_code == 422
+    ok = client.get("/search", params={"q": "x", "rank": "score"})
+    assert ok.status_code == 200
+    assert ok.json()["rank"] == "score"
 
 
 def test_search_jurisdiction_filter(client):
