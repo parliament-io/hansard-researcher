@@ -139,11 +139,13 @@ DESCRIBE SELECT * FROM read_parquet(
   'hf://datasets/parliament-data/hansard-embeddings/gold/contributions.parquet');
 ```
 
-## Qdrant snapshot
+## Optional extra: Qdrant snapshot
 
-`qdrant/` holds a collection snapshot for batteries-included semantic
-search: restore it into a Qdrant instance and query — no re-indexing of
-6.3M points. Point payloads carry `jurisdiction`, `date`, `house`,
+Everything above is fully usable without this — the parquet is the dataset.
+For anyone who wants batteries-included semantic search, `qdrant/` holds a
+point-in-time collection snapshot: restore it into a Qdrant instance and
+query — no re-indexing of 6.3M points. (~25 GB; re-cut occasionally, so it
+may trail the parquet shards between cuts.) Point payloads carry `jurisdiction`, `date`, `house`,
 `subject_id`, `talker_id`, plus citation metadata so search results cite
 the official record without any prose: subject/debate context
 (`subject_name`, `subject_uid`, `proceeding_name`, `subproceeding_name`,
