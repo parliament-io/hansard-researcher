@@ -15,7 +15,9 @@ build/
 *.duckdb
 *.duckdb.wal
 .vscode/
-scripts/
+# ops scratch area — only the dataset publish tool is tracked
+scripts/*
+!scripts/hf_publish.py
 schemas/*.xsd
 schemas/**/*.xsd
 schemas/*.swagger.json
