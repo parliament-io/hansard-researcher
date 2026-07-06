@@ -103,7 +103,8 @@ def consolidate_embeddings(data_dir: Path, staging: Path, allow_null_joins: bool
     jurisdictions = [
         r[0]
         for r in con.execute(
-            f"select distinct jurisdiction from read_parquet('{glob}', hive_partitioning=1) order by 1"
+            f"select distinct jurisdiction "
+            f"from read_parquet('{glob}', hive_partitioning=1) order by 1"
         ).fetchall()
     ]
     # one COPY per jurisdiction keeps open partition writers to ~one per

@@ -576,7 +576,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="serve the hosted search API (Tier 2): read-only semantic search "
         "returning metadata + official links, never prose",
     )
-    p.add_argument("--host", default="127.0.0.1", help="bind address (keep localhost; TLS/rate limits belong in the front proxy)")
+    p.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="bind address (keep localhost; TLS/rate limits belong in the front proxy)",
+    )
     p.add_argument("--port", type=int, default=8722)
     _provider_arg(p)
     p.add_argument(
