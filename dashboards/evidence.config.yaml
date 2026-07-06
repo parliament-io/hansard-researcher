@@ -1,3 +1,9 @@
+# GitHub Pages serves the site under /hansard-researcher/ — without this the
+# static build fetches its query data from absolute root paths and every
+# component 404s into a permanent "Loading..." state
+deployment:
+  basePath: /hansard-researcher
+
 plugins:
   components:
     "@evidence-dev/core-components": {}
