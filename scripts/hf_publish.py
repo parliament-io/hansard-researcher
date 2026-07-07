@@ -30,6 +30,7 @@ Usage (uv resolves the inline deps; no pyproject change needed):
   uv run scripts/hf_publish.py --dry-run          # stage + report, no upload
   uv run scripts/hf_publish.py                    # stage + upload
   uv run scripts/hf_publish.py --skip-consolidate # re-upload existing staging
+                                                  # (card still restages)
 
 Auth: fine-grained HF token (write on parliament-data repos, SSO-authorized)
 via HF_TOKEN env var or `hf auth login`. Upload uses upload_large_folder:
@@ -40,6 +41,8 @@ step is just running this again (only the current-year shards change).
 from __future__ import annotations
 
 import argparse
+import datetime as dt
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -164,6 +167,34 @@ def stage_extras(staging: Path, card: Path, snapshot: Path | None) -> None:
         print(f"staged qdrant snapshot {snapshot.name}")
 
 
+def refresh_card_stats(staging: Path) -> None:
+    """Rewrite the gold-cube row counts (and the as-of date) in the *staged*
+    card from the staged parquet itself, so the published numbers can never
+    drift from the published data. docs/hf_dataset_card.md keeps the grain
+    descriptions; the counts there are informational and refreshed here."""
+    card = staging / "README.md"
+    gold = staging / "gold"
+    if not (card.is_file() and gold.is_dir()):
+        return
+    text = card.read_text(encoding="utf-8")
+    con = duckdb.connect()
+    updated = 0
+    for cube in sorted(gold.glob("*.parquet")):
+        rows = con.execute(
+            f"select count(*) from '{cube.as_posix()}'"
+        ).fetchone()[0]
+        pattern = rf"(\| `{re.escape(cube.stem)}` \| )[\d,]+( \|)"
+        text, hits = re.subn(pattern, rf"\g<1>{rows:,}\g<2>", text, count=1)
+        updated += hits
+    text = re.sub(
+        r"These are as of \d{4}-\d{2}-\d{2}",
+        f"These are as of {dt.date.today().isoformat()}",
+        text,
+    )
+    card.write_text(text, encoding="utf-8")
+    print(f"refreshed {updated} cube row count(s) in the staged card")
+
+
 def report(staging: Path) -> None:
     print(f"\nstaging report ({staging}):")
     total = 0
@@ -194,7 +225,9 @@ def main() -> None:
     parser.add_argument("--qdrant-snapshot", type=Path, default=None)
     parser.add_argument("--dry-run", action="store_true", help="stage + report, no upload")
     parser.add_argument(
-        "--skip-consolidate", action="store_true", help="upload existing staging as-is"
+        "--skip-consolidate",
+        action="store_true",
+        help="skip embeddings/gold consolidation; card + snapshot still restage",
     )
     parser.add_argument(
         "--allow-null-joins",
@@ -207,7 +240,10 @@ def main() -> None:
     if not args.skip_consolidate:
         consolidate_embeddings(args.data_dir, args.staging, args.allow_null_joins)
         stage_gold(args.data_dir, args.staging)
-        stage_extras(args.staging, args.card, args.qdrant_snapshot)
+    # card (+ optional snapshot) restage even under --skip-consolidate: they
+    # are cheap copies, and a card fix must never ship stale
+    stage_extras(args.staging, args.card, args.qdrant_snapshot)
+    refresh_card_stats(args.staging)
     report(args.staging)
 
     if args.dry_run:
