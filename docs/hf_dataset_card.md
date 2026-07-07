@@ -102,7 +102,7 @@ LIMIT 10;
 
 ## `gold/` cubes
 
-These are as of 2026-07-06
+These are as of 2026-07-07
 
 | cube | rows | grain |
 |---|---|---|
@@ -113,12 +113,12 @@ These are as of 2026-07-06
 | `division_summary` | 14,055 | division outcomes with ayes/noes/margin |
 | `bills` | 7,339 | bill: houses, sitting span, latest stage, debate volume |
 | `bill_journey` | 31,484 | bill × house-day: stages reached, debate/divisions that day |
-| `bill_theme_link` | 36,885 | bill × theme association |
+| `bill_theme_link` | 36,888 | bill × theme association |
 | `member_activity` | 1,255 | member career totals |
 | `member_activity_by_week` | 98,417 | member × ISO week activity |
-| `member_theme_rank` | 25,790 | member ranking within each theme |
+| `member_theme_rank` | 25,788 | member ranking within each theme |
 | `member_vote_by_theme` | 19,042 | member vote tallies by theme |
-| `theme_by_week` | 42,971 | theme prevalence per week |
+| `theme_by_week` | 42,970 | theme prevalence per week |
 | `theme_cooccurrence` | 1,288 | theme pair co-occurrence |
 | `theme_share_by_jurisdiction` | 104 | theme share per jurisdiction |
 | `theme_subject_names` | 1,040 | top subject names per theme |
