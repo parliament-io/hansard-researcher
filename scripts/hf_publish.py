@@ -33,9 +33,10 @@ Usage (uv resolves the inline deps; no pyproject change needed):
                                                   # (card still restages)
 
 Auth: fine-grained HF token (write on parliament-data repos, SSO-authorized)
-via HF_TOKEN env var or `hf auth login`. Upload uses upload_large_folder:
-resumable, and re-runs skip files already on the hub — the daily incremental
-step is just running this again (only the current-year shards change).
+via HF_TOKEN env var or `hf auth login`. Upload uses upload_folder (which
+absorbed upload_large_folder's resumable/skip-existing behavior): re-runs
+skip files already on the hub — the daily incremental step is just running
+this again (only the current-year shards change).
 """
 
 from __future__ import annotations
@@ -212,7 +213,7 @@ def upload(staging: Path, repo: str) -> None:
     api = HfApi()  # token: HF_TOKEN env or cached `hf auth login`
     api.create_repo(repo, repo_type="dataset", exist_ok=True)
     print(f"uploading {staging} -> hf.co/datasets/{repo} (resumable; safe to re-run)")
-    api.upload_large_folder(repo_id=repo, repo_type="dataset", folder_path=staging)
+    api.upload_folder(repo_id=repo, repo_type="dataset", folder_path=staging)
     print("upload complete")
 
 
